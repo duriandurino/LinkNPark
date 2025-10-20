@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "563890930565",
+    "firebase_url": "https://linknpark-a9074-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "linknpark-a9074",
+    "storage_bucket": "linknpark-a9074.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:563890930565:android:0ab3e1a84f376a6a7bbaec",
+        "android_client_info": {
+          "package_name": "com.example.linknpark"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAu-xznEyKO_C4QT7iRES0W7avgBsbpcfM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

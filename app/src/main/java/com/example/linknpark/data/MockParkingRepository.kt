@@ -60,14 +60,14 @@ class MockParkingRepository : ParkingRepository {
 
         // Generate parking spots (let's create a 5x6 grid = 30 spots)
         val parkingSpots = mutableListOf<ParkingSpot>()
-        val occupiedSpotIds = listOf(3, 4, 7, 12, 15, 18, 21, 23, 27, 29) // 10 occupied spots
+        val occupiedSpotIds = listOf(3, 4, 7, 12, 15, 18, 21, 23, 27, 29, 40, 1) // 10 occupied spots
         
-        for (i in 1..30) {
+        for (i in 1..50) {
             if (occupiedSpotIds.contains(i)) {
                 // Occupied spot with car
                 val carId = 100 + i
                 val label = if (i == 3) "DBA 3163" 
-                           else if (i == 4) "UNKNOWN"
+                           else if (i == 1) "Test"
                            else if (i % 3 == 0) "ABC ${1000 + i}"
                            else if (i % 2 == 0) "XYZ ${2000 + i}"
                            else "UNKNOWN"

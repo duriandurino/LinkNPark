@@ -116,7 +116,7 @@ class ParkingPresenter(
 
         // Calculate grid dimensions based on number of spots
         val totalSpots = apiSpots.size
-        cols = 6 // Keep 6 columns
+        cols = 9 // Keep 6 columns
         rows = (totalSpots + cols - 1) / cols // Calculate rows needed
 
         // Convert API spots to ParkingSpace
