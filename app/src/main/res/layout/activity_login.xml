@@ -151,40 +151,32 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Demo Info Section -->
+            <!-- Sign Up Link -->
             <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center"
-                android:layout_marginTop="24dp"
-                android:padding="16dp"
-                android:background="@drawable/bg_rounded_white"
-                android:alpha="0.95">
+                android:orientation="horizontal"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Demo Credentials"
-                    android:textColor="@color/text_primary"
-                    android:textSize="12sp"
+                    android:text="@string/no_account"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvSignUp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" Sign Up"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
                     android:fontFamily="sans-serif-medium"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Staff: admin / password"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="User: user / password"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="11sp" />
-
+                    android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true" />
             </LinearLayout>
 
         </LinearLayout>

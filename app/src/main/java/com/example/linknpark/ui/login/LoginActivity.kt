@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.linknpark.R
 import com.example.linknpark.ui.staff.StaffHomeActivity
 import com.example.linknpark.ui.home.UserHomeActivity
+import com.example.linknpark.ui.register.RegisterActivity
 
 class LoginActivity : AppCompatActivity(), LoginContract.View {
 
@@ -17,6 +18,7 @@ class LoginActivity : AppCompatActivity(), LoginContract.View {
     private lateinit var btnLogin: Button
     private lateinit var progress: ProgressBar
     private lateinit var tvError: TextView
+    private lateinit var tvSignUp: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,6 +29,7 @@ class LoginActivity : AppCompatActivity(), LoginContract.View {
         btnLogin = findViewById(R.id.btnLogin)
         progress = findViewById(R.id.progress)
         tvError = findViewById(R.id.tvError)
+        tvSignUp = findViewById(R.id.tvSignUp)
 
         presenter = LoginPresenter()
         presenter.attach(this)
@@ -37,6 +40,12 @@ class LoginActivity : AppCompatActivity(), LoginContract.View {
                 etUsername.text?.toString(),
                 etPassword.text?.toString()
             )
+        }
+
+        // Navigate to Register Activity
+        tvSignUp.setOnClickListener {
+            val intent = Intent(this, RegisterActivity::class.java)
+            startActivity(intent)
         }
     }
 
