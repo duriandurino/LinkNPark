@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:gravity="center"
+            android:background="@drawable/bg_gradient_primary"
+            android:layout_marginEnd="16dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_parking"
+                app:tint="@color/white" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                android:id="@+id/tvSpotCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Spot A1"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvReservationTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Today, 2:00 PM - 4:00 PM"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvLicensePlate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ABC-1234"
+                android:textColor="@color/primary_blue"
+                android:textSize="12sp"
+                android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancelReservation"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:icon="@android:drawable/ic_menu_close_clear_cancel"
+            app:iconTint="@color/accent_red"
+            android:layout_gravity="center_vertical" />
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>
+
