@@ -72,15 +72,15 @@ class DashboardPresenter(
                 activityResult.onSuccess { sessions ->
                     val activities = sessions.map { session ->
                         val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-                        val timestamp = session.startTime?.toDate()?.let { timeFormat.format(it) } ?: "N/A"
+                        val timeStr = session.enteredAt?.toDate()?.let { timeFormat.format(it) } ?: "N/A"
                         
-                        val action = if (session.status == "ACTIVE") "Vehicle Entry" else "Vehicle Exit"
+                        val activityType = if (session.status == "ACTIVE") "Vehicle Entry" else "Vehicle Exit"
                         
                         ActivityLog(
-                            action = action,
+                            type = activityType,
                             spotCode = session.spotCode,
                             licensePlate = session.licensePlate,
-                            timestamp = timestamp
+                            time = timeStr
                         )
                     }
                     view?.showRecentActivity(activities)

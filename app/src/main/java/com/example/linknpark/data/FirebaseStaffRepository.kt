@@ -114,7 +114,7 @@ class FirebaseStaffRepository : StaffRepository {
             Log.d(TAG, "Fetching recent activity (limit: $limit)")
             
             val snapshot = firestore.collection("parking_sessions")
-                .orderBy("start_time", Query.Direction.DESCENDING)
+                .orderBy("entered_at", Query.Direction.DESCENDING)
                 .limit(limit.toLong())
                 .get()
                 .await()
@@ -128,14 +128,19 @@ class FirebaseStaffRepository : StaffRepository {
                         spotCode = doc.getString("spot_code") ?: "",
                         spotNumber = doc.getLong("spot_number")?.toInt() ?: 0,
                         licensePlate = doc.getString("license_plate") ?: "",
+                        carLabel = doc.getString("car_label") ?: "",
                         vehicleType = doc.getString("vehicle_type") ?: "STANDARD",
-                        startTime = doc.getTimestamp("start_time"),
-                        endTime = doc.getTimestamp("end_time"),
+                        enteredAt = doc.getTimestamp("entered_at"),
+                        exitedAt = doc.getTimestamp("exited_at"),
                         durationMinutes = doc.getLong("duration_minutes")?.toInt() ?: 0,
-                        amount = doc.getDouble("amount") ?: 0.0,
+                        hourlyRate = doc.getDouble("hourly_rate") ?: 50.0,
+                        totalAmount = doc.getDouble("total_amount") ?: 0.0,
+                        amountPaid = doc.getDouble("amount_paid") ?: 0.0,
+                        paymentId = doc.getString("payment_id"),
                         paymentStatus = doc.getString("payment_status") ?: "UNPAID",
                         status = doc.getString("status") ?: "ACTIVE",
-                        reservationId = doc.getString("reservation_id"),
+                        entryMethod = doc.getString("entry_method") ?: "CAMERA",
+                        exitMethod = doc.getString("exit_method"),
                         createdAt = doc.getTimestamp("created_at")
                     )
                 } catch (e: Exception) {
