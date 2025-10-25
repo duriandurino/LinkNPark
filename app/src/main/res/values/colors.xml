@@ -16,6 +16,11 @@
     <color name="status_reserved">#FF9800</color>
     <color name="status_inactive">#9E9E9E</color>
 
+    <!-- Parking Spot Background Colors -->
+    <color name="spot_available_bg">#E8F5E9</color>
+    <color name="spot_occupied_bg">#FFEBEE</color>
+    <color name="spot_reserved_bg">#FFF3E0</color>
+
     <!-- Background Colors -->
     <color name="background_primary">#FFFFFF</color>
     <color name="background_secondary">#F5F5F5</color>
