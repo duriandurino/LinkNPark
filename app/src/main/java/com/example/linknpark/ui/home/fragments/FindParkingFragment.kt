@@ -184,4 +184,3 @@ class FindParkingFragment : Fragment(), FindParkingContract.View {
 
 
 
-

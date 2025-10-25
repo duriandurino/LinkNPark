@@ -1,6 +1,7 @@
 package com.example.linknpark.ui.home.fragments
 
 import android.app.Dialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -18,7 +19,9 @@ import com.example.linknpark.data.FirebaseAuthRepository
 import com.example.linknpark.model.User
 import com.example.linknpark.model.Vehicle
 import com.example.linknpark.ui.home.adapters.VehiclesAdapter
+import com.example.linknpark.ui.login.LoginActivity
 import com.google.android.material.button.MaterialButton
+import com.google.firebase.auth.FirebaseAuth
 
 class ProfileFragment : Fragment(), ProfileContract.View {
 
@@ -29,6 +32,7 @@ class ProfileFragment : Fragment(), ProfileContract.View {
     private lateinit var rvVehicles: RecyclerView
     private lateinit var tvNoVehicles: TextView
     private lateinit var btnAddVehicle: MaterialButton
+    private lateinit var btnLogout: MaterialButton
     private lateinit var progressBar: ProgressBar
 
     private lateinit var vehiclesAdapter: VehiclesAdapter
@@ -51,6 +55,7 @@ class ProfileFragment : Fragment(), ProfileContract.View {
         rvVehicles = view.findViewById(R.id.rvVehicles)
         tvNoVehicles = view.findViewById(R.id.tvNoVehicles)
         btnAddVehicle = view.findViewById(R.id.btnAddVehicle)
+        btnLogout = view.findViewById(R.id.btnLogout)
         progressBar = view.findViewById(R.id.progressBar)
 
         // Setup RecyclerView
@@ -69,9 +74,13 @@ class ProfileFragment : Fragment(), ProfileContract.View {
         presenter = ProfilePresenter()
         presenter.attach(this, userId)
 
-        // Setup button
+        // Setup buttons
         btnAddVehicle.setOnClickListener {
             presenter.onAddVehicleClicked()
+        }
+
+        btnLogout.setOnClickListener {
+            showLogoutConfirmation()
         }
     }
 
@@ -163,8 +172,31 @@ class ProfileFragment : Fragment(), ProfileContract.View {
             .setNegativeButton("Cancel", null)
             .show()
     }
-}
 
+    private fun showLogoutConfirmation() {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Logout")
+            .setMessage("Are you sure you want to logout?")
+            .setPositiveButton("Logout") { _, _ ->
+                performLogout()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun performLogout() {
+        // Sign out from Firebase
+        FirebaseAuth.getInstance().signOut()
+
+        // Navigate back to login screen and clear the activity stack
+        val intent = Intent(requireContext(), LoginActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        requireActivity().finish()
+
+        Toast.makeText(requireContext(), "Logged out successfully", Toast.LENGTH_SHORT).show()
+    }
+}
 
 
 

@@ -58,4 +58,3 @@ class ReservationsAdapter : RecyclerView.Adapter<ReservationsAdapter.Reservation
 
 
 
-

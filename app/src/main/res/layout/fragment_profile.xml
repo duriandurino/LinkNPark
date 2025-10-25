@@ -166,6 +166,21 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Logout Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnLogout"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Logout"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium"
+                app:cornerRadius="12dp"
+                app:backgroundTint="@color/accent_red"
+                app:icon="@android:drawable/ic_lock_power_off"
+                app:iconGravity="start"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="16dp" />
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
@@ -178,7 +193,6 @@
         android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
-
 
 
 
