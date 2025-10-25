@@ -134,5 +134,45 @@ class FirebaseAuthRepository : AuthRepository {
         currentUser = null
         Log.d("FirebaseAuth", "User logged out")
     }
+
+    suspend fun getUserById(userId: String): Result<User> {
+        return try {
+            Log.d("FirebaseAuth", "Fetching user by ID: $userId")
+            
+            val userDoc = usersCollection.document(userId).get().await()
+            
+            if (!userDoc.exists()) {
+                Log.w("FirebaseAuth", "No user found with ID: $userId")
+                return Result.failure(Exception("User not found"))
+            }
+            
+            val userData = userDoc.data
+            if (userData == null) {
+                Log.e("FirebaseAuth", "User document data is null")
+                return Result.failure(Exception("Invalid user data"))
+            }
+            
+            // Extract user data
+            val userName = userData["name"] as? String ?: ""
+            val userEmail = userData["email"] as? String ?: ""
+            val userPassword = userData["password"] as? String ?: ""
+            val userRole = userData["role"] as? String ?: "DRIVER"
+            
+            val user = User(
+                uid = userDoc.id,
+                email = userEmail,
+                name = userName,
+                password = userPassword,
+                role = UserRole.fromString(userRole)
+            )
+            
+            Log.d("FirebaseAuth", "User fetched successfully: ${user.name}")
+            Result.success(user)
+            
+        } catch (e: Exception) {
+            Log.e("FirebaseAuth", "Error fetching user by ID", e)
+            Result.failure(Exception("Failed to fetch user: ${e.message}"))
+        }
+    }
 }
 

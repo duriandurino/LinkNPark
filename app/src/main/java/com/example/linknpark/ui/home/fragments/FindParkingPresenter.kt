@@ -39,7 +39,7 @@ class FindParkingPresenter(
     private fun setupRealTimeListener() {
         view?.showLoading(true)
         
-        repository.observeParkingSpots { spots ->
+        repository.observeParkingSpots("main_lot") { spots ->
             allSpots = spots
             updateStats(spots)
             applyFilter()
@@ -146,6 +146,7 @@ class FindParkingPresenter(
         }
     }
 }
+
 
 
 

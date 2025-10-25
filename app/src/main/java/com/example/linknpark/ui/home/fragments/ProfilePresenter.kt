@@ -36,9 +36,32 @@ class ProfilePresenter(
     }
 
     override fun loadUserInfo() {
-        val currentUser = authRepository.getCurrentUserSync()
-        if (currentUser != null) {
-            view?.showUserInfo(currentUser)
+        presenterScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    authRepository.getUserById(userId)
+                }
+
+                result.onSuccess { user ->
+                    view?.showUserInfo(user)
+                    Log.d(TAG, "User info loaded: ${user.name}")
+                }.onFailure { error ->
+                    Log.e(TAG, "Error loading user info", error)
+                    // Fallback to cached user if available
+                    val cachedUser = authRepository.getCurrentUserSync()
+                    if (cachedUser != null) {
+                        view?.showUserInfo(cachedUser)
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception loading user info", e)
+                // Fallback to cached user if available
+                val cachedUser = authRepository.getCurrentUserSync()
+                if (cachedUser != null) {
+                    view?.showUserInfo(cachedUser)
+                }
+            }
         }
     }
 

@@ -4,7 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -15,7 +17,7 @@ import com.google.android.material.button.MaterialButton
 import java.text.SimpleDateFormat
 import java.util.*
 
-class DashboardFragment : Fragment() {
+class DashboardFragment : Fragment(), DashboardContract.View {
 
     private lateinit var tvDateTime: TextView
     private lateinit var tvAvailableCount: TextView
@@ -24,8 +26,10 @@ class DashboardFragment : Fragment() {
     private lateinit var tvTotalVehicles: TextView
     private lateinit var rvRecentActivity: RecyclerView
     private lateinit var btnRefresh: MaterialButton
+    private lateinit var progressBar: ProgressBar
     
     private lateinit var activityAdapter: ActivityLogAdapter
+    private lateinit var presenter: DashboardContract.Presenter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -46,6 +50,7 @@ class DashboardFragment : Fragment() {
         tvTotalVehicles = view.findViewById(R.id.tvTotalVehicles)
         rvRecentActivity = view.findViewById(R.id.rvRecentActivity)
         btnRefresh = view.findViewById(R.id.btnRefresh)
+        progressBar = view.findViewById(R.id.progressBar)
 
         // Setup RecyclerView
         activityAdapter = ActivityLogAdapter()
@@ -55,13 +60,19 @@ class DashboardFragment : Fragment() {
         // Set current date/time
         updateDateTime()
 
-        // Load mock data
-        loadMockData()
+        // Initialize presenter
+        presenter = DashboardPresenter()
+        presenter.attach(this)
 
         // Refresh button
         btnRefresh.setOnClickListener {
-            loadMockData()
+            presenter.refresh()
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        presenter.detach()
     }
 
     private fun updateDateTime() {
@@ -69,22 +80,31 @@ class DashboardFragment : Fragment() {
         tvDateTime.text = dateFormat.format(Date())
     }
 
-    private fun loadMockData() {
-        // Mock statistics (can be replaced with Firebase calls)
-        tvAvailableCount.text = "45"
-        tvOccupiedCount.text = "55"
-        tvRevenue.text = "PHP 4,350.00"
-        tvTotalVehicles.text = "87 vehicles today"
+    override fun showAvailableCount(count: Int) {
+        tvAvailableCount.text = count.toString()
+    }
 
-        // Mock recent activity
-        val mockActivities = listOf(
-            ActivityLog("Vehicle Entry", "A1", "ABC-123", "10:30 AM"),
-            ActivityLog("Vehicle Exit", "B5", "XYZ-789", "10:25 AM"),
-            ActivityLog("Vehicle Entry", "C3", "DEF-456", "10:20 AM"),
-            ActivityLog("Vehicle Exit", "A2", "GHI-111", "10:15 AM"),
-            ActivityLog("Vehicle Entry", "D7", "JKL-222", "10:10 AM")
-        )
+    override fun showOccupiedCount(count: Int) {
+        tvOccupiedCount.text = count.toString()
+    }
 
-        activityAdapter.submitList(mockActivities)
+    override fun showRevenue(amount: String) {
+        tvRevenue.text = amount
+    }
+
+    override fun showVehicleCount(count: String) {
+        tvTotalVehicles.text = count
+    }
+
+    override fun showRecentActivity(activities: List<ActivityLog>) {
+        activityAdapter.submitList(activities)
+    }
+
+    override fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+    }
+
+    override fun showError(message: String) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
     }
 }

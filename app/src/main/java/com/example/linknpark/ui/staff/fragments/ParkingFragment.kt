@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -14,15 +15,17 @@ import com.example.linknpark.ui.staff.adapter.StaffParkingSpot
 import com.example.linknpark.ui.staff.adapter.StaffParkingSpotAdapter
 import com.google.android.material.button.MaterialButton
 
-class ParkingFragment : Fragment() {
+class ParkingFragment : Fragment(), ParkingContract.View {
 
     private lateinit var tvTotalSpots: TextView
     private lateinit var tvAvailableSpots: TextView
     private lateinit var tvOccupiedSpots: TextView
     private lateinit var rvParkingGrid: RecyclerView
     private lateinit var btnRefreshGrid: MaterialButton
+    private lateinit var progressBar: ProgressBar
 
     private lateinit var spotAdapter: StaffParkingSpotAdapter
+    private lateinit var presenter: ParkingContract.Presenter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -41,6 +44,7 @@ class ParkingFragment : Fragment() {
         tvOccupiedSpots = view.findViewById(R.id.tvOccupiedSpots)
         rvParkingGrid = view.findViewById(R.id.rvParkingGrid)
         btnRefreshGrid = view.findViewById(R.id.btnRefreshGrid)
+        progressBar = view.findViewById(R.id.progressBar)
 
         // Setup RecyclerView with 5 columns
         spotAdapter = StaffParkingSpotAdapter { spot ->
@@ -54,49 +58,37 @@ class ParkingFragment : Fragment() {
         rvParkingGrid.layoutManager = GridLayoutManager(requireContext(), 5)
         rvParkingGrid.adapter = spotAdapter
 
-        // Load mock data
-        loadMockData()
+        // Initialize presenter
+        presenter = ParkingPresenter()
+        presenter.attach(this)
 
         // Refresh button
         btnRefreshGrid.setOnClickListener {
-            loadMockData()
-            Toast.makeText(requireContext(), "Refreshed", Toast.LENGTH_SHORT).show()
+            presenter.refresh()
+            Toast.makeText(requireContext(), "Refreshing...", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun loadMockData() {
-        // Generate mock parking spots (can be replaced with Firebase calls)
-        val mockSpots = mutableListOf<StaffParkingSpot>()
-        
-        val rows = listOf("A", "B", "C", "D", "E")
-        val occupiedSpots = setOf("A1", "A3", "B2", "B4", "C1", "C5", "D3", "E2", "E4")
-        val reservedSpots = setOf("A2", "C3", "D1")
+    override fun onDestroyView() {
+        super.onDestroyView()
+        presenter.detach()
+    }
 
-        for (row in rows) {
-            for (col in 1..6) {
-                val spotCode = "$row$col"
-                val status = when {
-                    occupiedSpots.contains(spotCode) -> "OCCUPIED"
-                    reservedSpots.contains(spotCode) -> "RESERVED"
-                    else -> "AVAILABLE"
-                }
-                val licensePlate = if (status == "OCCUPIED") {
-                    "ABC-${(100..999).random()}"
-                } else null
+    override fun showParkingSpots(spots: List<StaffParkingSpot>) {
+        spotAdapter.submitList(spots)
+    }
 
-                mockSpots.add(StaffParkingSpot(spotCode, status, licensePlate))
-            }
-        }
-
-        spotAdapter.submitList(mockSpots)
-
-        // Update stats
-        val available = mockSpots.count { it.status == "AVAILABLE" }
-        val occupied = mockSpots.count { it.status == "OCCUPIED" }
-        val total = mockSpots.size
-
+    override fun showStats(total: Int, available: Int, occupied: Int) {
         tvTotalSpots.text = total.toString()
         tvAvailableSpots.text = available.toString()
         tvOccupiedSpots.text = occupied.toString()
+    }
+
+    override fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+    }
+
+    override fun showError(message: String) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
     }
 }

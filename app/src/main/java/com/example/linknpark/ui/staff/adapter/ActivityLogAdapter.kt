@@ -50,3 +50,4 @@ class ActivityLogAdapter : RecyclerView.Adapter<ActivityLogAdapter.ViewHolder>()
 
 
 
+
