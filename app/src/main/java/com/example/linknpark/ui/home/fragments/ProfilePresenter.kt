@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.linknpark.data.DriverRepository
 import com.example.linknpark.data.FirebaseAuthRepository
 import com.example.linknpark.data.FirebaseDriverRepository
+import com.example.linknpark.model.Vehicle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -80,8 +81,19 @@ class ProfilePresenter(
 
         presenterScope.launch {
             try {
+                val vehicle = Vehicle(
+                    userId = userId,
+                    licensePlate = licensePlate,
+                    make = make,
+                    model = model,
+                    color = color,
+                    vehicleType = "SEDAN",
+                    year = 2024,
+                    isPrimary = false
+                )
+                
                 val result = withContext(Dispatchers.IO) {
-                    driverRepository.addVehicle(userId, licensePlate, make, model, color)
+                    driverRepository.addVehicle(vehicle)
                 }
 
                 result.onSuccess {

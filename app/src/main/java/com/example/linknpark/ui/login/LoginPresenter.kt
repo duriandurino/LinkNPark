@@ -48,7 +48,7 @@ class LoginPresenter : LoginContract.Presenter {
                 result.onSuccess { user ->
                     view?.showLoading(false)
                     Log.d("LoginPresenter", "Login successful for ${user.name} with role ${user.role}")
-
+                    
                     // Navigate based on user role
                     when (user.role) {
                         UserRole.STAFF -> {

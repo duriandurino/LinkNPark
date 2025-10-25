@@ -1,4 +1,4 @@
-package com.example.linknpark.ui.home.adapters
+package com.example.linknpark.ui.staff.adapter
 
 import android.view.LayoutInflater
 import android.view.View
@@ -7,51 +7,65 @@ import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.linknpark.R
-import com.example.linknpark.model.ParkingSpot
 
-class ParkingSpotsAdapter(
-    private val onSpotClick: (ParkingSpot) -> Unit
-) : RecyclerView.Adapter<ParkingSpotsAdapter.SpotViewHolder>() {
+data class StaffParkingSpot(
+    val spotCode: String,
+    val status: String,
+    val licensePlate: String? = null
+)
 
-    private var spots = listOf<ParkingSpot>()
+class StaffParkingSpotAdapter(
+    private val onSpotClick: (StaffParkingSpot) -> Unit
+) : RecyclerView.Adapter<StaffParkingSpotAdapter.ViewHolder>() {
 
-    fun submitList(newSpots: List<ParkingSpot>) {
+    private var spots = listOf<StaffParkingSpot>()
+
+    fun submitList(newSpots: List<StaffParkingSpot>) {
         spots = newSpots
         notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SpotViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_parking_spot_grid, parent, false)
-        return SpotViewHolder(view)
+            .inflate(R.layout.item_staff_parking_spot, parent, false)
+        return ViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: SpotViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(spots[position], onSpotClick)
     }
 
     override fun getItemCount() = spots.size
 
-    class SpotViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val cardView: CardView = itemView.findViewById(R.id.cardSpot)
         private val tvSpotCode: TextView = itemView.findViewById(R.id.tvSpotCode)
         private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
+        private val tvLicensePlate: TextView = itemView.findViewById(R.id.tvLicensePlate)
 
-        fun bind(spot: ParkingSpot, onSpotClick: (ParkingSpot) -> Unit) {
+        fun bind(spot: StaffParkingSpot, onSpotClick: (StaffParkingSpot) -> Unit) {
             tvSpotCode.text = spot.spotCode
             tvStatus.text = spot.status
 
+            // Show license plate if occupied
+            if (!spot.licensePlate.isNullOrEmpty()) {
+                tvLicensePlate.text = spot.licensePlate
+                tvLicensePlate.visibility = View.VISIBLE
+            } else {
+                tvLicensePlate.visibility = View.GONE
+            }
+
             // Set colors based on status
-            val (bgColor, textColor) = when {
-                spot.isAvailable -> Pair(
+            val (bgColor, textColor) = when (spot.status) {
+                "AVAILABLE" -> Pair(
                     itemView.context.getColor(R.color.spot_available_bg),
                     itemView.context.getColor(R.color.status_available)
                 )
-                spot.isOccupied -> Pair(
+                "OCCUPIED" -> Pair(
                     itemView.context.getColor(R.color.spot_occupied_bg),
                     itemView.context.getColor(R.color.status_occupied)
                 )
-                spot.isReserved -> Pair(
+                "RESERVED" -> Pair(
                     itemView.context.getColor(R.color.spot_reserved_bg),
                     itemView.context.getColor(R.color.status_reserved)
                 )
@@ -64,17 +78,11 @@ class ParkingSpotsAdapter(
             cardView.setCardBackgroundColor(bgColor)
             tvSpotCode.setTextColor(textColor)
             tvStatus.setTextColor(textColor)
+            tvLicensePlate.setTextColor(textColor)
 
-            // Only clickable if available
-            cardView.isClickable = spot.isAvailable
-            if (spot.isAvailable) {
-                cardView.setOnClickListener { onSpotClick(spot) }
-            } else {
-                cardView.setOnClickListener(null)
-            }
+            cardView.setOnClickListener { onSpotClick(spot) }
         }
     }
 }
-
 
 

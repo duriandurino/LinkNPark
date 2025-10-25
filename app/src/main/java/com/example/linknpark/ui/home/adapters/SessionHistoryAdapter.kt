@@ -48,8 +48,9 @@ class SessionHistoryAdapter : RecyclerView.Adapter<SessionHistoryAdapter.Session
             val dateFormat = SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault())
             tvStartTime.text = "Started: ${dateFormat.format(session.startTime.toDate())}"
             
-            if (session.endTime != null) {
-                tvEndTime.text = "Ended: ${dateFormat.format(session.endTime.toDate())}"
+            val endTime = session.endTime
+            if (endTime != null) {
+                tvEndTime.text = "Ended: ${dateFormat.format(endTime.toDate())}"
                 tvEndTime.visibility = View.VISIBLE
             } else {
                 tvEndTime.visibility = View.GONE
@@ -80,4 +81,3 @@ class SessionHistoryAdapter : RecyclerView.Adapter<SessionHistoryAdapter.Session
         }
     }
 }
-

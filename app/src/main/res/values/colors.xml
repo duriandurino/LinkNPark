@@ -4,39 +4,39 @@
     <color name="primary_blue">#1E88E5</color>
     <color name="primary_blue_dark">#1565C0</color>
     <color name="primary_blue_light">#42A5F5</color>
-
+    
     <!-- Accent Colors -->
     <color name="accent_green">#4CAF50</color>
     <color name="accent_orange">#FF9800</color>
     <color name="accent_red">#F44336</color>
-
+    
     <!-- Status Colors -->
     <color name="status_available">#4CAF50</color>
     <color name="status_occupied">#F44336</color>
     <color name="status_reserved">#FF9800</color>
     <color name="status_inactive">#9E9E9E</color>
-
+    
     <!-- Parking Spot Background Colors -->
     <color name="spot_available_bg">#E8F5E9</color>
     <color name="spot_occupied_bg">#FFEBEE</color>
     <color name="spot_reserved_bg">#FFF3E0</color>
-
+    
     <!-- Background Colors -->
     <color name="background_primary">#FFFFFF</color>
     <color name="background_secondary">#F5F5F5</color>
     <color name="background_card">#FFFFFF</color>
     <color name="background_overlay">#80000000</color>
-
+    
     <!-- Text Colors -->
     <color name="text_primary">#212121</color>
     <color name="text_secondary">#757575</color>
     <color name="text_hint">#BDBDBD</color>
     <color name="text_on_primary">#FFFFFF</color>
-
+    
     <!-- Border and Divider -->
     <color name="border_light">#E0E0E0</color>
     <color name="divider">#EEEEEE</color>
-
+    
     <!-- Standard Colors -->
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>

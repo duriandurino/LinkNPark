@@ -11,7 +11,7 @@ data class User(
 enum class UserRole {
     DRIVER,
     STAFF;
-
+    
     companion object {
         fun fromString(value: String): UserRole {
             return when (value.uppercase()) {

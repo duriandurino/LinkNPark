@@ -67,9 +67,10 @@ dependencies {
     // Gson for JSON parsing
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // RecyclerView
+    // RecyclerView and SwipeRefreshLayout
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.cardview:cardview:1.0.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

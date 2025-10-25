@@ -1,104 +1,90 @@
 package com.example.linknpark.ui.staff.fragments
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.linknpark.R
-import com.example.linknpark.model.ParkingSummary
-import com.example.linknpark.ui.staff.presenter.DashboardContract
-import com.example.linknpark.ui.staff.presenter.DashboardPresenter
+import com.example.linknpark.ui.staff.adapter.ActivityLog
+import com.example.linknpark.ui.staff.adapter.ActivityLogAdapter
+import com.google.android.material.button.MaterialButton
+import java.text.SimpleDateFormat
+import java.util.*
 
-class DashboardFragment : Fragment(), DashboardContract.View {
+class DashboardFragment : Fragment() {
 
-    private lateinit var presenter: DashboardPresenter
-
-    // Views
-    private lateinit var tvTotalSpots: TextView
-    private lateinit var tvAvailableSpots: TextView
-    private lateinit var tvOccupiedSpots: TextView
-    private lateinit var tvReservedSpots: TextView
+    private lateinit var tvDateTime: TextView
+    private lateinit var tvAvailableCount: TextView
+    private lateinit var tvOccupiedCount: TextView
     private lateinit var tvRevenue: TextView
-    private lateinit var tvActiveSessions: TextView
-    private var progressBar: ProgressBar? = null
+    private lateinit var tvTotalVehicles: TextView
+    private lateinit var rvRecentActivity: RecyclerView
+    private lateinit var btnRefresh: MaterialButton
+    
+    private lateinit var activityAdapter: ActivityLogAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_dashboard, container, false)
+        return inflater.inflate(R.layout.fragment_staff_dashboard, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         // Initialize views
-        initializeViews(view)
-
-        // Initialize presenter
-        presenter = DashboardPresenter(this)
-
-        return view
-    }
-
-    private fun initializeViews(view: View) {
-        tvTotalSpots = view.findViewById(R.id.tvTotalSpots)
-        tvAvailableSpots = view.findViewById(R.id.tvAvailableSpots)
-        tvOccupiedSpots = view.findViewById(R.id.tvOccupiedSpots)
-        tvReservedSpots = view.findViewById(R.id.tvReservedSpots)
+        tvDateTime = view.findViewById(R.id.tvDateTime)
+        tvAvailableCount = view.findViewById(R.id.tvAvailableCount)
+        tvOccupiedCount = view.findViewById(R.id.tvOccupiedCount)
         tvRevenue = view.findViewById(R.id.tvRevenue)
-        tvActiveSessions = view.findViewById(R.id.tvActiveSessions)
+        tvTotalVehicles = view.findViewById(R.id.tvTotalVehicles)
+        rvRecentActivity = view.findViewById(R.id.rvRecentActivity)
+        btnRefresh = view.findViewById(R.id.btnRefresh)
 
-        // Optional: Add refresh functionality
-//        view.findViewById<View>(R.id.btnRefreshDashboard)?.setOnClickListener {
-//            presenter.refreshData()
-//        }
+        // Setup RecyclerView
+        activityAdapter = ActivityLogAdapter()
+        rvRecentActivity.layoutManager = LinearLayoutManager(requireContext())
+        rvRecentActivity.adapter = activityAdapter
+
+        // Set current date/time
+        updateDateTime()
+
+        // Load mock data
+        loadMockData()
+
+        // Refresh button
+        btnRefresh.setOnClickListener {
+            loadMockData()
+        }
     }
 
-    override fun showStatistics(summary: ParkingSummary) {
-        Log.d("DashboardFragment", "Updating statistics: $summary")
-
-        // Update total spots
-        tvTotalSpots.text = summary.totalSpots.toString()
-
-        // Update available spots
-        tvAvailableSpots.text = summary.availableSpots.toString()
-
-        // Update occupied spots
-        tvOccupiedSpots.text = summary.occupiedSpots.toString()
-
-        // Update reserved spots (calculate from total - occupied - available, or set to 0 for now)
-        val reservedSpots = 0 // Can be updated when reservation feature is implemented
-        tvReservedSpots.text = reservedSpots.toString()
-
-        // Calculate mock revenue based on occupied spots (e.g., $5 per spot)
-        val mockRevenue = summary.occupiedSpots * 5.0
-        tvRevenue.text = String.format("$%.2f", mockRevenue)
-
-        // Update active sessions (use occupiedSpots as active sessions)
-        tvActiveSessions.text = summary.occupiedSpots.toString()
-
-        Log.d("DashboardFragment", "Total: ${summary.totalSpots}, Available: ${summary.availableSpots}, Occupied: ${summary.occupiedSpots}")
-        Log.d("DashboardFragment", "Entries: ${summary.totalEntries}, Exits: ${summary.totalExits}")
-        Log.d("DashboardFragment", "Active Cars: ${summary.activeCarsCount}")
+    private fun updateDateTime() {
+        val dateFormat = SimpleDateFormat("EEEE, hh:mm a", Locale.getDefault())
+        tvDateTime.text = dateFormat.format(Date())
     }
 
-    override fun showLoading(isLoading: Boolean) {
-        progressBar?.visibility = if (isLoading) View.VISIBLE else View.GONE
+    private fun loadMockData() {
+        // Mock statistics (can be replaced with Firebase calls)
+        tvAvailableCount.text = "45"
+        tvOccupiedCount.text = "55"
+        tvRevenue.text = "PHP 4,350.00"
+        tvTotalVehicles.text = "87 vehicles today"
 
-        // Optional: dim the content while loading
-        view?.alpha = if (isLoading) 0.5f else 1.0f
-    }
+        // Mock recent activity
+        val mockActivities = listOf(
+            ActivityLog("Vehicle Entry", "A1", "ABC-123", "10:30 AM"),
+            ActivityLog("Vehicle Exit", "B5", "XYZ-789", "10:25 AM"),
+            ActivityLog("Vehicle Entry", "C3", "DEF-456", "10:20 AM"),
+            ActivityLog("Vehicle Exit", "A2", "GHI-111", "10:15 AM"),
+            ActivityLog("Vehicle Entry", "D7", "JKL-222", "10:10 AM")
+        )
 
-    override fun showError(message: String) {
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-        Log.e("DashboardFragment", "Error: $message")
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        presenter.onDestroy()
+        activityAdapter.submitList(mockActivities)
     }
 }

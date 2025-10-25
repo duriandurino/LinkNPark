@@ -5,9 +5,33 @@
     android:layout_height="match_parent"
     android:background="@color/background_secondary">
 
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_gradient_primary"
+        app:elevation="0dp">
+
+        <androidx.appcompat.widget.Toolbar
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:paddingHorizontal="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Parking Overview"
+                android:textColor="@color/white"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-medium" />
+
+        </androidx.appcompat.widget.Toolbar>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:orientation="vertical"
@@ -15,25 +39,7 @@
             android:layout_height="wrap_content"
             android:padding="16dp">
 
-            <!-- Header -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Find Parking"
-                android:textColor="@color/text_primary"
-                android:textSize="28sp"
-                android:fontFamily="sans-serif-medium"
-                android:layout_marginBottom="8dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Main Street Parking Lot"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                android:layout_marginBottom="16dp" />
-
-            <!-- Stats Card -->
+            <!-- Stats Summary -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -56,12 +62,36 @@
                         android:gravity="center">
 
                         <TextView
-                            android:id="@+id/tvAvailableCount"
+                            android:id="@+id/tvTotalSpots"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0"
+                            android:text="100"
+                            android:textColor="@color/primary_blue"
+                            android:textSize="28sp"
+                            android:fontFamily="sans-serif-medium" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Total"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:orientation="vertical"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center">
+
+                        <TextView
+                            android:id="@+id/tvAvailableSpots"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="45"
                             android:textColor="@color/status_available"
-                            android:textSize="32sp"
+                            android:textSize="28sp"
                             android:fontFamily="sans-serif-medium" />
 
                         <TextView
@@ -80,12 +110,12 @@
                         android:gravity="center">
 
                         <TextView
-                            android:id="@+id/tvOccupiedCount"
+                            android:id="@+id/tvOccupiedSpots"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0"
+                            android:text="55"
                             android:textColor="@color/status_occupied"
-                            android:textSize="32sp"
+                            android:textSize="28sp"
                             android:fontFamily="sans-serif-medium" />
 
                         <TextView
@@ -96,90 +126,59 @@
                             android:textSize="12sp" />
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:orientation="vertical"
-                        android:layout_width="0dp"
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Parking Grid Header -->
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Parking Grid"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:fontFamily="sans-serif-medium" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRefreshGrid"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:icon="@android:drawable/ic_popup_sync"
+                    app:iconTint="@color/primary_blue" />
+
+            </LinearLayout>
+
+            <!-- Parking Spots Grid -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvParkingGrid"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:gravity="center">
-
-                        <TextView
-                            android:id="@+id/tvReservedCount"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textColor="@color/status_reserved"
-                            android:textSize="32sp"
-                            android:fontFamily="sans-serif-medium" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Reserved"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-                    </LinearLayout>
+                        android:nestedScrollingEnabled="false" />
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Filter Buttons -->
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chipGroupFilter"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:singleSelection="true"
-                app:selectionRequired="true">
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipAll"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="All"
-                    android:checked="true" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipAvailable"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Available" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipOccupied"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Occupied" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipReserved"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Reserved" />
-
-            </com.google.android.material.chip.ChipGroup>
-
-            <!-- Parking Spots Grid -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvParkingSpots"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false" />
-
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
-    <!-- Loading Indicator -->
-    <ProgressBar
-        android:id="@+id/progressBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
