@@ -345,7 +345,7 @@ class FirebaseDriverRepository : DriverRepository {
             val reservation = Reservation(
                 reservationId = docRef.id,
                 userId = userId,
-                lotId = "main_lot",
+                lotId = lotId,
                 spotCode = spotCode,
                 spotNumber = spotNumber,
                 licensePlate = licensePlate,
