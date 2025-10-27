@@ -23,6 +23,7 @@ import com.example.linknpark.ui.login.LoginActivity
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class ProfileFragment : Fragment(), ProfileContract.View {
 
