@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Add Vehicle"
+        android:text="Edit Profile"
         android:textColor="@color/text_primary"
         android:textSize="24sp"
         android:fontFamily="sans-serif-medium"
@@ -24,41 +24,11 @@
         app:startIconTint="@color/primary_blue">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etLicensePlate"
+            android:id="@+id/etName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="License Plate"
-            android:inputType="textCapCharacters"
-            android:textSize="16sp" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.LinkNPark.TextInputLayout">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etMake"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Make (e.g., Toyota)"
-            android:inputType="textCapWords"
-            android:textSize="16sp" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.LinkNPark.TextInputLayout">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etModel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Model (e.g., Camry)"
-            android:inputType="textCapWords"
+            android:hint="Name"
+            android:inputType="textPersonName"
             android:textSize="16sp" />
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -66,14 +36,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
-        style="@style/Widget.LinkNPark.TextInputLayout">
+        style="@style/Widget.LinkNPark.TextInputLayout"
+        app:endIconMode="password_toggle"
+        app:startIconDrawable="@android:drawable/ic_lock_lock"
+        app:startIconTint="@color/primary_blue">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etColor"
+            android:id="@+id/etPassword"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Color (e.g., Red)"
-            android:inputType="textCapWords"
+            android:hint="Password"
+            android:inputType="textPassword"
             android:textSize="16sp" />
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -95,15 +68,10 @@
             android:id="@+id/btnSave"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Save Vehicle"
+            android:text="Save Profile"
             app:cornerRadius="8dp" />
 
     </LinearLayout>
 
 </LinearLayout>
-
-
-
-
-
 

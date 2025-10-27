@@ -32,6 +32,7 @@ class ProfileFragment : Fragment(), ProfileContract.View {
     private lateinit var rvVehicles: RecyclerView
     private lateinit var tvNoVehicles: TextView
     private lateinit var btnAddVehicle: MaterialButton
+    private lateinit var btnEditProfile: MaterialButton
     private lateinit var btnLogout: MaterialButton
     private lateinit var progressBar: ProgressBar
 
@@ -55,6 +56,7 @@ class ProfileFragment : Fragment(), ProfileContract.View {
         rvVehicles = view.findViewById(R.id.rvVehicles)
         tvNoVehicles = view.findViewById(R.id.tvNoVehicles)
         btnAddVehicle = view.findViewById(R.id.btnAddVehicle)
+        btnEditProfile = view.findViewById(R.id.btnEditProfile)
         btnLogout = view.findViewById(R.id.btnLogout)
         progressBar = view.findViewById(R.id.progressBar)
 
@@ -65,18 +67,22 @@ class ProfileFragment : Fragment(), ProfileContract.View {
         rvVehicles.layoutManager = LinearLayoutManager(requireContext())
         rvVehicles.adapter = vehiclesAdapter
 
-        // Get user info
-        val authRepository = FirebaseAuthRepository()
+        // Get user info using singleton
+        val authRepository = FirebaseAuthRepository.getInstance()
         val currentUser = authRepository.getCurrentUserSync()
         val userId = currentUser?.uid ?: "unknown"
 
-        // Initialize presenter
+        // Initialize presenter with singleton
         presenter = ProfilePresenter()
         presenter.attach(this, userId)
 
         // Setup buttons
         btnAddVehicle.setOnClickListener {
             presenter.onAddVehicleClicked()
+        }
+
+        btnEditProfile.setOnClickListener {
+            presenter.onEditProfileClicked()
         }
 
         btnLogout.setOnClickListener {
@@ -162,6 +168,44 @@ class ProfileFragment : Fragment(), ProfileContract.View {
         dialog.show()
     }
 
+    override fun showEditProfileDialog(currentName: String) {
+        val dialog = Dialog(requireContext())
+        dialog.setContentView(R.layout.dialog_edit_profile)
+        dialog.window?.setLayout(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+
+        val etName = dialog.findViewById<EditText>(R.id.etName)
+        val etPassword = dialog.findViewById<EditText>(R.id.etPassword)
+        val btnSave = dialog.findViewById<Button>(R.id.btnSave)
+        val btnCancel = dialog.findViewById<Button>(R.id.btnCancel)
+
+        etName.setText(currentName)
+
+        btnSave.setOnClickListener {
+            val name = etName.text.toString()
+            val password = etPassword.text.toString()
+
+            presenter.onSaveProfile(name, password)
+            dialog.dismiss()
+        }
+
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    override fun showEditProfileSuccess(message: String) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+    }
+
+    override fun showEditProfileError(message: String) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+    }
+
     private fun showDeleteVehicleConfirmation(vehicle: Vehicle) {
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Delete Vehicle")
@@ -185,6 +229,12 @@ class ProfileFragment : Fragment(), ProfileContract.View {
     }
 
     private fun performLogout() {
+        // CRITICAL: Clear repository cache BEFORE Firebase signout
+        val authRepository = FirebaseAuthRepository.getInstance()
+        kotlinx.coroutines.GlobalScope.launch {
+            authRepository.logout()
+        }
+        
         // Sign out from Firebase
         FirebaseAuth.getInstance().signOut()
 

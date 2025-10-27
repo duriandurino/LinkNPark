@@ -6,12 +6,23 @@ import com.example.linknpark.model.UserRole
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
-class FirebaseAuthRepository : AuthRepository {
+class FirebaseAuthRepository private constructor() : AuthRepository {
     
     private val firestore = FirebaseFirestore.getInstance()
     private val usersCollection = firestore.collection("users")
     
     private var currentUser: User? = null
+    
+    companion object {
+        @Volatile
+        private var INSTANCE: FirebaseAuthRepository? = null
+        
+        fun getInstance(): FirebaseAuthRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: FirebaseAuthRepository().also { INSTANCE = it }
+            }
+        }
+    }
     
     override suspend fun login(email: String, password: String): Result<User> {
         return try {
@@ -172,6 +183,39 @@ class FirebaseAuthRepository : AuthRepository {
         } catch (e: Exception) {
             Log.e("FirebaseAuth", "Error fetching user by ID", e)
             Result.failure(Exception("Failed to fetch user: ${e.message}"))
+        }
+    }
+
+    override suspend fun updateUserProfile(userId: String, name: String, password: String): Result<User> {
+        return try {
+            Log.d("FirebaseAuth", "Updating profile for user: $userId")
+            
+            if (name.isBlank() || password.isBlank()) {
+                return Result.failure(Exception("Name and password cannot be empty"))
+            }
+            
+            // Update user document in Firestore
+            val updateData = hashMapOf<String, Any>(
+                "name" to name,
+                "password" to password
+            )
+            
+            usersCollection.document(userId).update(updateData).await()
+            
+            // Fetch the updated user data
+            val updatedUserResult = getUserById(userId)
+            
+            updatedUserResult.onSuccess { updatedUser ->
+                // Update cached user
+                currentUser = updatedUser
+                Log.d("FirebaseAuth", "Profile updated successfully for: ${updatedUser.name}")
+            }
+            
+            updatedUserResult
+            
+        } catch (e: Exception) {
+            Log.e("FirebaseAuth", "Error updating profile", e)
+            Result.failure(Exception("Failed to update profile: ${e.message}"))
         }
     }
 }

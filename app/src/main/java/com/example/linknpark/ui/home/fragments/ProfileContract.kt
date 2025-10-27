@@ -16,6 +16,9 @@ interface ProfileContract {
         fun showLoading(show: Boolean)
         fun showError(message: String)
         fun showAddVehicleDialog()
+        fun showEditProfileDialog(currentName: String)
+        fun showEditProfileSuccess(message: String)
+        fun showEditProfileError(message: String)
     }
     
     interface Presenter {
@@ -26,8 +29,12 @@ interface ProfileContract {
         fun onAddVehicleClicked()
         fun onSaveVehicle(licensePlate: String, make: String, model: String, color: String)
         fun onDeleteVehicle(vehicleId: String)
+        fun onEditProfileClicked()
+        fun onSaveProfile(name: String, password: String)
     }
 }
+
+
 
 
 

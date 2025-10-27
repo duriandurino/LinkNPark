@@ -67,8 +67,8 @@ class HomeFragment : Fragment(), HomeContract.View {
         rvActiveSessions.layoutManager = LinearLayoutManager(requireContext())
         rvActiveSessions.adapter = sessionsAdapter
 
-        // Get user info from auth repository
-        val authRepository = FirebaseAuthRepository()
+        // Get user info from auth repository using singleton
+        val authRepository = FirebaseAuthRepository.getInstance()
         val currentUser = authRepository.getCurrentUserSync()
         
         val userId = currentUser?.uid ?: "unknown"

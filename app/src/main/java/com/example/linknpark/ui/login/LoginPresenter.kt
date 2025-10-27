@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
 class LoginPresenter : LoginContract.Presenter {
 
     private var view: LoginContract.View? = null
-    private val authRepository: AuthRepository = FirebaseAuthRepository()
+    private val authRepository: AuthRepository = FirebaseAuthRepository.getInstance()
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     override fun attach(view: LoginContract.View) {

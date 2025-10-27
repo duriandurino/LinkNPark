@@ -14,7 +14,7 @@ import kotlinx.coroutines.withContext
 class RegisterPresenter : RegisterContract.Presenter {
 
     private var view: RegisterContract.View? = null
-    private val authRepository: AuthRepository = FirebaseAuthRepository()
+    private val authRepository: AuthRepository = FirebaseAuthRepository.getInstance()
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     override fun attach(view: RegisterContract.View) {

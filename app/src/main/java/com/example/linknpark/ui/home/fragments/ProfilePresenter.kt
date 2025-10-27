@@ -14,12 +14,13 @@ import kotlinx.coroutines.withContext
 
 class ProfilePresenter(
     private val driverRepository: DriverRepository = FirebaseDriverRepository(),
-    private val authRepository: FirebaseAuthRepository = FirebaseAuthRepository()
+    private val authRepository: FirebaseAuthRepository = FirebaseAuthRepository.getInstance()
 ) : ProfileContract.Presenter {
 
     private var view: ProfileContract.View? = null
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var userId: String = ""
+    private var currentUserName: String = ""
     private val TAG = "ProfilePresenter"
 
     override fun attach(view: ProfileContract.View, userId: String) {
@@ -43,24 +44,25 @@ class ProfilePresenter(
                 }
 
                 result.onSuccess { user ->
+                    currentUserName = user.name
                     view?.showUserInfo(user)
                     Log.d(TAG, "User info loaded: ${user.name}")
                 }.onFailure { error ->
-                    Log.e(TAG, "Error loading user info", error)
-                    // Fallback to cached user if available
+                    Log.e(TAG, "Error loading user info from Firebase", error)
+                    // Fallback to cached user ONLY if available, with warning
                     val cachedUser = authRepository.getCurrentUserSync()
                     if (cachedUser != null) {
+                        Log.w(TAG, "Using cached user data - may be stale!")
+                        currentUserName = cachedUser.name
                         view?.showUserInfo(cachedUser)
+                    } else {
+                        view?.showError("Failed to load user information")
                     }
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Exception loading user info", e)
-                // Fallback to cached user if available
-                val cachedUser = authRepository.getCurrentUserSync()
-                if (cachedUser != null) {
-                    view?.showUserInfo(cachedUser)
-                }
+                view?.showError("An error occurred while loading profile")
             }
         }
     }
@@ -152,6 +154,40 @@ class ProfilePresenter(
 
             } catch (e: Exception) {
                 view?.showDeleteVehicleError("An error occurred: ${e.message}")
+            } finally {
+                view?.showLoading(false)
+            }
+        }
+    }
+
+    override fun onEditProfileClicked() {
+        view?.showEditProfileDialog(currentUserName)
+    }
+
+    override fun onSaveProfile(name: String, password: String) {
+        if (name.isBlank() || password.isBlank()) {
+            view?.showEditProfileError("Name and password cannot be empty")
+            return
+        }
+
+        view?.showLoading(true)
+
+        presenterScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    authRepository.updateUserProfile(userId, name, password)
+                }
+
+                result.onSuccess { updatedUser ->
+                    currentUserName = updatedUser.name
+                    view?.showEditProfileSuccess("Profile updated successfully!")
+                    view?.showUserInfo(updatedUser)
+                }.onFailure { error ->
+                    view?.showEditProfileError(error.message ?: "Failed to update profile")
+                }
+
+            } catch (e: Exception) {
+                view?.showEditProfileError("An error occurred: ${e.message}")
             } finally {
                 view?.showLoading(false)
             }

@@ -59,8 +59,8 @@ class FindParkingFragment : Fragment(), FindParkingContract.View {
         rvParkingSpots.layoutManager = GridLayoutManager(requireContext(), 3)
         rvParkingSpots.adapter = spotsAdapter
 
-        // Get user info
-        val authRepository = FirebaseAuthRepository()
+        // Get user info using singleton
+        val authRepository = FirebaseAuthRepository.getInstance()
         val currentUser = authRepository.getCurrentUserSync()
         val userId = currentUser?.uid ?: "unknown"
 
@@ -180,6 +180,8 @@ class FindParkingFragment : Fragment(), FindParkingContract.View {
         dialog.show()
     }
 }
+
+
 
 
 

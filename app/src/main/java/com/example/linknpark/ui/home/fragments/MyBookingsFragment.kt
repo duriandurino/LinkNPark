@@ -54,8 +54,8 @@ class MyBookingsFragment : Fragment(), MyBookingsContract.View {
         rvHistory.layoutManager = LinearLayoutManager(requireContext())
         rvHistory.adapter = historyAdapter
 
-        // Get user info
-        val authRepository = FirebaseAuthRepository()
+        // Get user info using singleton
+        val authRepository = FirebaseAuthRepository.getInstance()
         val currentUser = authRepository.getCurrentUserSync()
         val userId = currentUser?.uid ?: "unknown"
 
@@ -107,6 +107,8 @@ class MyBookingsFragment : Fragment(), MyBookingsContract.View {
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
     }
 }
+
+
 
 
 

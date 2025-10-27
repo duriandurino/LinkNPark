@@ -9,8 +9,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.linknpark.R
+import com.example.linknpark.data.FirebaseAuthRepository
 import com.example.linknpark.ui.login.LoginActivity
 import com.google.android.material.button.MaterialButton
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class SettingsFragment : Fragment() {
 
@@ -62,11 +65,19 @@ class SettingsFragment : Fragment() {
 
         // Logout button
         btnLogout.setOnClickListener {
+            // CRITICAL: Clear repository cache before logout
+            val authRepository = FirebaseAuthRepository.getInstance()
+            GlobalScope.launch {
+                authRepository.logout()
+            }
+            
             // Navigate back to login
             val intent = Intent(requireContext(), LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
             requireActivity().finish()
+            
+            Toast.makeText(requireContext(), "Logged out successfully", Toast.LENGTH_SHORT).show()
         }
     }
 }
