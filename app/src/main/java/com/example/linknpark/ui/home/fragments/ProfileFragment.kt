@@ -22,6 +22,7 @@ import com.example.linknpark.ui.home.adapters.VehiclesAdapter
 import com.example.linknpark.ui.login.LoginActivity
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.GlobalScope
 
 class ProfileFragment : Fragment(), ProfileContract.View {
 
