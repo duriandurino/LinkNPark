@@ -233,7 +233,7 @@ class ProfileFragment : Fragment(), ProfileContract.View {
     private fun performLogout() {
         // CRITICAL: Clear repository cache BEFORE Firebase signout
         val authRepository = FirebaseAuthRepository.getInstance()
-        kotlinx.coroutines.GlobalScope.launch {
+        GlobalScope.launch {
             authRepository.logout()
         }
         
