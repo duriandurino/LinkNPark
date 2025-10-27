@@ -1,6 +1,7 @@
 package com.example.linknpark.data
 
 import android.util.Log
+import com.example.linknpark.model.ParkingLot
 import com.example.linknpark.model.ParkingSpot
 import com.example.linknpark.model.Reservation
 import com.example.linknpark.model.ParkingSession
