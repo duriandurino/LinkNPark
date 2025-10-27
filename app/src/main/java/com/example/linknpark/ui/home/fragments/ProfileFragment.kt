@@ -22,6 +22,8 @@ import com.example.linknpark.ui.home.adapters.VehiclesAdapter
 import com.example.linknpark.ui.login.LoginActivity
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class ProfileFragment : Fragment(), ProfileContract.View {
 
@@ -231,7 +233,7 @@ class ProfileFragment : Fragment(), ProfileContract.View {
     private fun performLogout() {
         // CRITICAL: Clear repository cache BEFORE Firebase signout
         val authRepository = FirebaseAuthRepository.getInstance()
-        kotlinx.coroutines.GlobalScope.launch {
+        GlobalScope.launch {
             authRepository.logout()
         }
         
