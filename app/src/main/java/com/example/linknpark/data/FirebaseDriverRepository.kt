@@ -16,10 +16,131 @@ class FirebaseDriverRepository : DriverRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val TAG = "FirebaseDriverRepo"
-    
+
+    private var parkingLotListener: ListenerRegistration? = null
     private var spotListener: ListenerRegistration? = null
     private var reservationListener: ListenerRegistration? = null
     private var sessionListener: ListenerRegistration? = null
+
+    // ========== Parking Lots ==========
+
+    fun observeParkingLots(callback: (List<ParkingLot>) -> Unit) {
+        Log.d(TAG, "Setting up real-time listener for parking lots")
+
+        parkingLotListener?.remove()
+
+        parkingLotListener = firestore.collection("parking_lots")
+            .whereEqualTo("isActive", true)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error listening to parking lots", error)
+                    callback(emptyList())
+                    return@addSnapshotListener
+                }
+
+                val lots = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        doc.toObject(ParkingLot::class.java)?.copy(lotId = doc.id)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing parking lot in listener: ${doc.id}", e)
+                        null
+                    }
+                } ?: emptyList()
+
+                Log.d(TAG, "Real-time update: ${lots.size} parking lots")
+                callback(lots)
+            }
+    }
+
+    suspend fun searchParkingLots(query: String): List<ParkingLot> {
+        return try {
+            Log.d(TAG, "Searching parking lots with query: $query")
+
+            if (query.isEmpty()) {
+                // Return all active lots if query is empty
+                val snapshot = firestore.collection("parking_lots")
+                    .whereEqualTo("isActive", true)
+                    .get()
+                    .await()
+
+                return snapshot.documents.mapNotNull { doc ->
+                    try {
+                        doc.toObject(ParkingLot::class.java)?.copy(lotId = doc.id)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing parking lot: ${doc.id}", e)
+                        null
+                    }
+                }
+            }
+
+            // Search by name and address (Firestore doesn't support OR, so we need two queries)
+            val lowerQuery = query.lowercase()
+
+            val nameResults = firestore.collection("parking_lots")
+                .whereEqualTo("isActive", true)
+                .get()
+                .await()
+
+            val results = nameResults.documents.mapNotNull { doc ->
+                try {
+                    val lot = doc.toObject(ParkingLot::class.java)?.copy(lotId = doc.id)
+                    val name = lot?.name?.lowercase() ?: ""
+                    val address = lot?.address?.lowercase() ?: ""
+
+                    if (name.contains(lowerQuery) || address.contains(lowerQuery)) {
+                        lot
+                    } else {
+                        null
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing parking lot: ${doc.id}", e)
+                    null
+                }
+            }
+
+            Log.d(TAG, "Found ${results.size} parking lots matching query")
+            results
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error searching parking lots", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getParkingLotById(lotId: String): ParkingLot? {
+        return try {
+            Log.d(TAG, "Fetching parking lot: $lotId")
+
+            val doc = firestore.collection("parking_lots")
+                .document(lotId)
+                .get()
+                .await()
+
+            if (!doc.exists()) {
+                Log.w(TAG, "Parking lot not found: $lotId")
+                return null
+            }
+
+            val lot = doc.toObject(ParkingLot::class.java)?.copy(lotId = doc.id)
+
+            if (lot?.isActive == false) {
+                Log.w(TAG, "Parking lot is inactive: $lotId")
+                return null
+            }
+
+            lot
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching parking lot", e)
+            null
+        }
+    }
+
+    fun removeParkingLotListener() {
+        parkingLotListener?.remove()
+        parkingLotListener = null
+        Log.d(TAG, "Removed parking lot listener")
+    }
 
     // ========== Parking Spots ==========
 
