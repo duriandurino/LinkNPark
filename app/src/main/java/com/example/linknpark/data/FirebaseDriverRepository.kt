@@ -290,13 +290,14 @@ class FirebaseDriverRepository : DriverRepository {
 
     override suspend fun reserveSpot(
         userId: String,
+        lotId: String,
         spotCode: String,
         spotNumber: Int,
         licensePlate: String,
         durationHours: Int
     ): Result<Reservation> {
         return try {
-            Log.d(TAG, "Creating reservation for spot: $spotCode")
+            Log.d(TAG, "Creating reservation for spot: $spotCode in lot: $lotId")
 
             val now = Timestamp.now()
             val reserveStart = Timestamp(now.seconds, now.nanoseconds)
@@ -304,7 +305,7 @@ class FirebaseDriverRepository : DriverRepository {
 
             val reservationData = hashMapOf(
                 "user_id" to userId,
-                "lot_id" to "main_lot",
+                "lot_id" to lotId,
                 "spot_code" to spotCode,
                 "spot_number" to spotNumber,
                 "license_plate" to licensePlate,
