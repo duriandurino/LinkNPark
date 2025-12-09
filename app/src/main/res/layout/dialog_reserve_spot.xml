@@ -35,6 +35,26 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="Start Time"
+        android:textColor="@color/text_primary"
+        android:textSize="16sp"
+        android:layout_marginBottom="8dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSelectStartTime"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Now (Immediate)"
+        android:textAllCaps="false"
+        app:icon="@android:drawable/ic_menu_recent_history"
+        app:iconGravity="textStart"
+        app:cornerRadius="8dp"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:text="Duration"
         android:textColor="@color/text_primary"
         android:textSize="16sp"

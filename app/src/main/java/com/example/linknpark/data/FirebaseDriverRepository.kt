@@ -30,7 +30,7 @@ class FirebaseDriverRepository : DriverRepository {
         parkingLotListener?.remove()
 
         parkingLotListener = firestore.collection("parking_lots")
-            .whereEqualTo("isActive", true)
+            .whereEqualTo("status", "ACTIVE")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e(TAG, "Error listening to parking lots", error)
@@ -48,8 +48,55 @@ class FirebaseDriverRepository : DriverRepository {
                 } ?: emptyList()
 
                 Log.d(TAG, "Real-time update: ${lots.size} parking lots")
-                callback(lots)
+                
+                // Enrich with actual spot counts from parking_spots collection
+                if (lots.isNotEmpty()) {
+                    enrichLotsWithSpotCounts(lots, callback)
+                } else {
+                    callback(lots)
+                }
             }
+    }
+    
+    private fun enrichLotsWithSpotCounts(lots: List<ParkingLot>, callback: (List<ParkingLot>) -> Unit) {
+        val enrichedLots = mutableListOf<ParkingLot>()
+        var completedCount = 0
+        
+        lots.forEach { lot ->
+            firestore.collection("parking_spots")
+                .whereEqualTo("lotId", lot.lotId)
+                .get()
+                .addOnSuccessListener { spotDocs ->
+                    val totalSpots = spotDocs.size()
+                    val availableSpots = spotDocs.documents.count { doc ->
+                        val status = doc.getString("status") ?: "AVAILABLE"
+                        status == "AVAILABLE"
+                    }
+                    
+                    Log.d(TAG, "Lot ${lot.name}: $availableSpots/$totalSpots spots (from parking_spots)")
+                    
+                    // Update lot with actual counts
+                    val enrichedLot = lot.copy().apply {
+                        this.totalSpots = totalSpots
+                        this.availableSpots = availableSpots
+                    }
+                    enrichedLots.add(enrichedLot)
+                    
+                    completedCount++
+                    if (completedCount == lots.size) {
+                        callback(enrichedLots)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to get spots for lot ${lot.lotId}", e)
+                    enrichedLots.add(lot) // Use original lot on error
+                    
+                    completedCount++
+                    if (completedCount == lots.size) {
+                        callback(enrichedLots)
+                    }
+                }
+        }
     }
 
     suspend fun searchParkingLots(query: String): List<ParkingLot> {
@@ -59,7 +106,7 @@ class FirebaseDriverRepository : DriverRepository {
             if (query.isEmpty()) {
                 // Return all active lots if query is empty
                 val snapshot = firestore.collection("parking_lots")
-                    .whereEqualTo("isActive", true)
+                    .whereEqualTo("status", "ACTIVE")
                     .get()
                     .await()
 
@@ -77,7 +124,7 @@ class FirebaseDriverRepository : DriverRepository {
             val lowerQuery = query.lowercase()
 
             val nameResults = firestore.collection("parking_lots")
-                .whereEqualTo("isActive", true)
+                .whereEqualTo("status", "ACTIVE")
                 .get()
                 .await()
 
@@ -773,5 +820,106 @@ class FirebaseDriverRepository : DriverRepository {
             Result.failure(e)
         }
     }
+    
+    // ============== NEW METHODS FOR MVP COMPLIANCE ==============
+    
+    override suspend fun updateSpotStatus(spotId: String, status: String): Result<Boolean> {
+        return try {
+            firestore.collection("parking_spots")
+                .document(spotId)
+                .update("status", status)
+                .await()
+            
+            Log.d(TAG, "Spot status updated successfully: $spotId -> $status")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating spot status", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getSessionHistory(
+        userId: String,
+        statusFilter: String?,
+        startDate: java.util.Date?,
+        endDate: java.util.Date?,
+        limit: Int
+    ): Result<List<ParkingSession>> {
+        return try {
+            var query = firestore.collection("parking_sessions")
+                .whereEqualTo("userId", userId)
+                .orderBy("entryTime", Query.Direction.DESCENDING)
+                .limit(limit.toLong())
+            
+            val snapshot = query.get().await()
+            
+            var sessions = snapshot.documents.mapNotNull { doc ->
+                parseParkingSession(doc)
+            }
+            
+            // Apply filters client-side for flexibility
+            if (statusFilter != null && statusFilter != "ALL") {
+                sessions = sessions.filter { it.status == statusFilter }
+            }
+            
+            if (startDate != null) {
+                sessions = sessions.filter { session ->
+                    val entryDate = session.enteredAt?.toDate()
+                    entryDate != null && !entryDate.before(startDate)
+                }
+            }
+            
+            if (endDate != null) {
+                sessions = sessions.filter { session ->
+                    val entryDate = session.enteredAt?.toDate()
+                    entryDate != null && !entryDate.after(endDate)
+                }
+            }
+            
+            Log.d(TAG, "Session history fetched: ${sessions.size} sessions")
+            Result.success(sessions)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching session history", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun completeSession(
+        sessionId: String,
+        spotId: String?,
+        totalAmount: Double,
+        paymentMethod: String
+    ): Result<Boolean> {
+        return try {
+            val now = Timestamp.now()
+            val sessionUpdates = hashMapOf<String, Any>(
+                "status" to "COMPLETED",
+                "exitTime" to now,
+                "totalAmount" to totalAmount,
+                "paymentStatus" to "PAID",
+                "paymentMethod" to paymentMethod,
+                "paidAt" to now
+            )
+            
+            // Update session
+            firestore.collection("parking_sessions")
+                .document(sessionId)
+                .update(sessionUpdates)
+                .await()
+            
+            // Update spot status if spotId provided
+            if (!spotId.isNullOrEmpty()) {
+                firestore.collection("parking_spots")
+                    .document(spotId)
+                    .update("status", "AVAILABLE")
+                    .await()
+            }
+            
+            Log.d(TAG, "Session completed successfully: $sessionId")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error completing session", e)
+            Result.failure(e)
+        }
+    }
 }
-

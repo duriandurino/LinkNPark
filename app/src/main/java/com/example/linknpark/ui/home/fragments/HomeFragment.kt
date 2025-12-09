@@ -35,7 +35,7 @@ class HomeFragment : Fragment(), HomeContract.View {
     private lateinit var btnViewBookings: MaterialButton
 
     private val reservationsAdapter = ReservationsAdapter()
-    private val sessionsAdapter = SessionsAdapter()
+    private lateinit var sessionsAdapter: SessionsAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -64,6 +64,22 @@ class HomeFragment : Fragment(), HomeContract.View {
         rvReservations.layoutManager = LinearLayoutManager(requireContext())
         rvReservations.adapter = reservationsAdapter
 
+        // Initialize sessions adapter with End Session callback
+        sessionsAdapter = SessionsAdapter { session ->
+            // Navigate to Payment screen
+            Toast.makeText(
+                requireContext(),
+                "Processing payment for ${session.spotCode}...",
+                Toast.LENGTH_SHORT
+            ).show()
+            
+            // Navigate to PaymentFragment
+            val paymentFragment = PaymentFragment.newInstance(session)
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, paymentFragment)
+                .addToBackStack(null)
+                .commit()
+        }
         rvActiveSessions.layoutManager = LinearLayoutManager(requireContext())
         rvActiveSessions.adapter = sessionsAdapter
 
@@ -142,6 +158,10 @@ class HomeFragment : Fragment(), HomeContract.View {
 
     override fun setRefreshing(refreshing: Boolean) {
         swipeRefresh.isRefreshing = refreshing
+    }
+
+    override fun showSessionEnded(message: String) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
     }
 }
 

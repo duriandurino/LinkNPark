@@ -15,6 +15,7 @@ interface HomeContract {
         fun showError(message: String)
         fun showLoading(show: Boolean)
         fun setRefreshing(refreshing: Boolean)
+        fun showSessionEnded(message: String)
     }
     
     interface Presenter {
@@ -23,6 +24,7 @@ interface HomeContract {
         fun onRefresh()
         fun onFindParkingClicked()
         fun onViewBookingsClicked()
+        fun onEndSession(session: ParkingSession)
     }
 }
 

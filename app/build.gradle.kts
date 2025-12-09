@@ -70,10 +70,18 @@ dependencies {
     // OpenStreetMap
     implementation("org.osmdroid:osmdroid-android:6.1.18")
 
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
     // RecyclerView and SwipeRefreshLayout
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.cardview:cardview:1.0.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
+    // This is for the <FloatingActionButton>
+    implementation("com.google.android.material:material:1.12.0")
+
+// This is for the <org.osmdroid.views.MapView>
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

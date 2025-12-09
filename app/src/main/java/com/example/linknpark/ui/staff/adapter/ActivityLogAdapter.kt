@@ -11,7 +11,8 @@ data class ActivityLog(
     val type: String,
     val spotCode: String,
     val licensePlate: String,
-    val time: String
+    val time: String,
+    val isEntry: Boolean = true
 )
 
 class ActivityLogAdapter : RecyclerView.Adapter<ActivityLogAdapter.ViewHolder>() {

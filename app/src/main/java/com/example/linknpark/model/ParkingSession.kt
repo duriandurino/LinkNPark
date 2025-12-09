@@ -6,6 +6,7 @@ data class ParkingSession(
     val sessionId: String = "",
     val userId: String = "",
     val lotId: String = "",
+    val spotId: String? = null,
     val spotCode: String = "",
     val spotNumber: Int = 0,
     val licensePlate: String = "",

@@ -71,10 +71,10 @@ class FirebaseStaffRepository : StaffRepository {
 
     override suspend fun getParkingStats(lotId: String): Result<ParkingStats> {
         return try {
-            Log.d(TAG, "Fetching parking stats for lot: $lotId")
+            Log.d(TAG, "Fetching parking stats for all spots")
             
+            // Query all parking spots (ignoring lotId for now to get aggregate stats)
             val snapshot = firestore.collection("parking_spots")
-                .whereEqualTo("lot_id", lotId)
                 .get()
                 .await()
 
@@ -84,13 +84,13 @@ class FirebaseStaffRepository : StaffRepository {
             var reservedSpots = 0
 
             snapshot.documents.forEach { doc ->
-                val isAvailable = doc.getBoolean("is_available") ?: true
-                val isOccupied = doc.getBoolean("is_occupied") ?: false
-                val isReserved = doc.getBoolean("is_reserved") ?: false
-
-                if (isAvailable) availableSpots++
-                if (isOccupied) occupiedSpots++
-                if (isReserved) reservedSpots++
+                val status = doc.getString("status") ?: "AVAILABLE"
+                
+                when (status) {
+                    "AVAILABLE" -> availableSpots++
+                    "OCCUPIED" -> occupiedSpots++
+                    "RESERVED" -> reservedSpots++
+                }
             }
 
             val stats = ParkingStats(
@@ -100,7 +100,7 @@ class FirebaseStaffRepository : StaffRepository {
                 reservedSpots = reservedSpots
             )
 
-            Log.d(TAG, "Stats: $stats")
+            Log.d(TAG, "Stats: total=$totalSpots, available=$availableSpots, occupied=$occupiedSpots, reserved=$reservedSpots")
             Result.success(stats)
 
         } catch (e: Exception) {
@@ -114,7 +114,7 @@ class FirebaseStaffRepository : StaffRepository {
             Log.d(TAG, "Fetching recent activity (limit: $limit)")
             
             val snapshot = firestore.collection("parking_sessions")
-                .orderBy("entered_at", Query.Direction.DESCENDING)
+                .orderBy("entryTime", Query.Direction.DESCENDING)
                 .limit(limit.toLong())
                 .get()
                 .await()
@@ -123,25 +123,25 @@ class FirebaseStaffRepository : StaffRepository {
                 try {
                     ParkingSession(
                         sessionId = doc.id,
-                        userId = doc.getString("user_id") ?: "",
-                        lotId = doc.getString("lot_id") ?: "",
-                        spotCode = doc.getString("spot_code") ?: "",
-                        spotNumber = doc.getLong("spot_number")?.toInt() ?: 0,
-                        licensePlate = doc.getString("license_plate") ?: "",
-                        carLabel = doc.getString("car_label") ?: "",
-                        vehicleType = doc.getString("vehicle_type") ?: "STANDARD",
-                        enteredAt = doc.getTimestamp("entered_at"),
-                        exitedAt = doc.getTimestamp("exited_at"),
-                        durationMinutes = doc.getLong("duration_minutes")?.toInt() ?: 0,
-                        hourlyRate = doc.getDouble("hourly_rate") ?: 50.0,
-                        totalAmount = doc.getDouble("total_amount") ?: 0.0,
-                        amountPaid = doc.getDouble("amount_paid") ?: 0.0,
-                        paymentId = doc.getString("payment_id"),
-                        paymentStatus = doc.getString("payment_status") ?: "UNPAID",
+                        userId = doc.getString("userId") ?: "",
+                        lotId = doc.getString("lotId") ?: "",
+                        spotCode = doc.getString("spotCode") ?: "",
+                        spotNumber = doc.getLong("spotNumber")?.toInt() ?: 0,
+                        licensePlate = doc.getString("licensePlate") ?: "",
+                        carLabel = doc.getString("carLabel") ?: "",
+                        vehicleType = doc.getString("vehicleType") ?: "STANDARD",
+                        enteredAt = doc.getTimestamp("entryTime"),
+                        exitedAt = doc.getTimestamp("exitTime"),
+                        durationMinutes = doc.getLong("durationMinutes")?.toInt() ?: 0,
+                        hourlyRate = doc.getDouble("hourlyRate") ?: 50.0,
+                        totalAmount = doc.getDouble("totalAmount") ?: 0.0,
+                        amountPaid = doc.getDouble("amountPaid") ?: 0.0,
+                        paymentId = doc.getString("paymentId"),
+                        paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
                         status = doc.getString("status") ?: "ACTIVE",
-                        entryMethod = doc.getString("entry_method") ?: "CAMERA",
-                        exitMethod = doc.getString("exit_method"),
-                        createdAt = doc.getTimestamp("created_at")
+                        entryMethod = doc.getString("entryMethod") ?: "DEVTOOLS",
+                        exitMethod = doc.getString("exitMethod"),
+                        createdAt = doc.getTimestamp("createdAt")
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing session: ${doc.id}", e)
@@ -217,5 +217,284 @@ class FirebaseStaffRepository : StaffRepository {
             Result.failure(e)
         }
     }
+    
+    // ============== NEW METHODS FOR MVP COMPLIANCE ==============
+    
+    override suspend fun createParkingSpot(
+        code: String,
+        type: String,
+        hourlyRate: Double,
+        lotId: String
+    ): Result<String> {
+        return try {
+            val spotData = hashMapOf(
+                "code" to code,
+                "type" to type,
+                "status" to "AVAILABLE",
+                "hourly_rate" to hourlyRate,
+                "lot_id" to lotId,
+                "created_at" to Timestamp.now()
+            )
+            
+            val docRef = firestore.collection("parking_spots")
+                .add(spotData)
+                .await()
+            
+            Log.d(TAG, "Parking spot created: ${docRef.id}")
+            Result.success(docRef.id)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating parking spot", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun updateParkingSpot(
+        spotId: String,
+        code: String,
+        hourlyRate: Double,
+        status: String
+    ): Result<Boolean> {
+        return try {
+            val updates = hashMapOf<String, Any>(
+                "code" to code,
+                "hourly_rate" to hourlyRate,
+                "status" to status,
+                "updated_at" to Timestamp.now()
+            )
+            
+            firestore.collection("parking_spots")
+                .document(spotId)
+                .update(updates)
+                .await()
+            
+            Log.d(TAG, "Parking spot updated: $spotId")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating parking spot", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun deleteParkingSpot(spotId: String): Result<Boolean> {
+        return try {
+            firestore.collection("parking_spots")
+                .document(spotId)
+                .delete()
+                .await()
+            
+            Log.d(TAG, "Parking spot deleted: $spotId")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting parking spot", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun updateSpotStatus(spotId: String, status: String): Result<Boolean> {
+        return try {
+            firestore.collection("parking_spots")
+                .document(spotId)
+                .update("status", status)
+                .await()
+            
+            Log.d(TAG, "Spot status updated: $spotId -> $status")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating spot status", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getPendingExits(lotId: String): Result<List<ParkingSession>> {
+        return try {
+            val snapshot = firestore.collection("parking_sessions")
+                .whereEqualTo("status", "ACTIVE")
+                .orderBy("entryTime", Query.Direction.ASCENDING)
+                .get()
+                .await()
+            
+            val sessions = snapshot.documents.mapNotNull { doc ->
+                try {
+                    ParkingSession(
+                        sessionId = doc.id,
+                        userId = doc.getString("userId") ?: "",
+                        lotId = doc.getString("lotId") ?: "",
+                        spotId = doc.getString("spotId"),
+                        spotCode = doc.getString("spotCode") ?: "",
+                        spotNumber = doc.getLong("spotNumber")?.toInt() ?: 0,
+                        licensePlate = doc.getString("licensePlate") ?: "",
+                        carLabel = doc.getString("carLabel") ?: "",
+                        vehicleType = doc.getString("vehicleType") ?: "STANDARD",
+                        enteredAt = doc.getTimestamp("entryTime"),
+                        exitedAt = doc.getTimestamp("exitTime"),
+                        durationMinutes = doc.getLong("durationMinutes")?.toInt() ?: 0,
+                        hourlyRate = doc.getDouble("hourlyRate") ?: 0.0,
+                        totalAmount = doc.getDouble("totalAmount") ?: 0.0,
+                        amountPaid = doc.getDouble("amountPaid") ?: 0.0,
+                        paymentId = doc.getString("paymentId"),
+                        paymentStatus = doc.getString("paymentStatus") ?: "UNPAID",
+                        status = doc.getString("status") ?: "ACTIVE",
+                        entryMethod = doc.getString("entryMethod") ?: "CAMERA",
+                        exitMethod = doc.getString("exitMethod"),
+                        createdAt = doc.getTimestamp("createdAt")
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing session: ${doc.id}", e)
+                    null
+                }
+            }
+            
+            Log.d(TAG, "Pending exits fetched: ${sessions.size}")
+            Result.success(sessions)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching pending exits", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun confirmPayment(
+        sessionId: String,
+        spotId: String?,
+        totalAmount: Double,
+        paymentMethod: String
+    ): Result<Boolean> {
+        return try {
+            val now = Timestamp.now()
+            val updates = hashMapOf<String, Any>(
+                "status" to "COMPLETED",
+                "exitTime" to now,
+                "totalAmount" to totalAmount,
+                "paymentStatus" to "PAID",
+                "paymentMethod" to paymentMethod,
+                "paidAt" to now
+            )
+            
+            firestore.collection("parking_sessions")
+                .document(sessionId)
+                .update(updates)
+                .await()
+            
+            // Update spot status
+            if (!spotId.isNullOrEmpty()) {
+                firestore.collection("parking_spots")
+                    .document(spotId)
+                    .update("status", "AVAILABLE")
+                    .await()
+            }
+            
+            Log.d(TAG, "Payment confirmed: $sessionId")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error confirming payment", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun overrideFee(
+        sessionId: String,
+        newAmount: Double,
+        reason: String
+    ): Result<Boolean> {
+        return try {
+            val updates = hashMapOf<String, Any>(
+                "totalAmount" to newAmount,
+                "feeOverrideReason" to reason,
+                "feeOverrideAt" to Timestamp.now()
+            )
+            
+            firestore.collection("parking_sessions")
+                .document(sessionId)
+                .update(updates)
+                .await()
+            
+            Log.d(TAG, "Fee overridden for session: $sessionId -> $newAmount")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error overriding fee", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getActivityLogs(limit: Int, typeFilter: String?): Result<List<ActivityLog>> {
+        return try {
+            val snapshot = firestore.collection("parking_sessions")
+                .orderBy("entryTime", Query.Direction.DESCENDING)
+                .limit(limit.toLong())
+                .get()
+                .await()
+            
+            val logs = snapshot.documents.mapNotNull { doc ->
+                try {
+                    val status = doc.getString("status") ?: "ACTIVE"
+                    val entryTime = doc.getTimestamp("entryTime")?.toDate()
+                    val exitTime = doc.getTimestamp("exitTime")?.toDate()
+                    val spotCode = doc.getString("spotCode") ?: ""
+                    val licensePlate = doc.getString("licensePlate") ?: ""
+                    
+                    val isEntry = status == "ACTIVE" || exitTime == null
+                    val type = if (isEntry) "🚗 Vehicle Entry" else "✓ Vehicle Exit"
+                    
+                    val dateFormat = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault())
+                    val time = if (isEntry && entryTime != null) {
+                        dateFormat.format(entryTime)
+                    } else if (!isEntry && exitTime != null) {
+                        dateFormat.format(exitTime)
+                    } else {
+                        "N/A"
+                    }
+                    
+                    ActivityLog(
+                        type = type,
+                        spotCode = spotCode,
+                        licensePlate = licensePlate,
+                        time = time,
+                        isEntry = isEntry
+                    )
+                } catch (e: Exception) {
+                    null
+                }
+            }.let { logs ->
+                if (typeFilter != null && typeFilter != "ALL") {
+                    when (typeFilter) {
+                        "ENTRY" -> logs.filter { it.isEntry }
+                        "EXIT" -> logs.filter { !it.isEntry }
+                        else -> logs
+                    }
+                } else {
+                    logs
+                }
+            }
+            
+            Log.d(TAG, "Activity logs fetched: ${logs.size}")
+            Result.success(logs)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching activity logs", e)
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun searchLogs(query: String, limit: Int): Result<List<ActivityLog>> {
+        return try {
+            // Get all logs and filter client-side
+            val logsResult = getActivityLogs(limit * 2, null)
+            
+            if (logsResult.isSuccess) {
+                val allLogs = logsResult.getOrNull() ?: emptyList()
+                val queryLower = query.lowercase()
+                
+                val filteredLogs = allLogs.filter { log ->
+                    log.spotCode.lowercase().contains(queryLower) ||
+                    log.licensePlate.lowercase().contains(queryLower)
+                }.take(limit)
+                
+                Log.d(TAG, "Search logs for '$query': ${filteredLogs.size} results")
+                Result.success(filteredLogs)
+            } else {
+                Result.failure(logsResult.exceptionOrNull() ?: Exception("Unknown error"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error searching logs", e)
+            Result.failure(e)
+        }
+    }
 }
-

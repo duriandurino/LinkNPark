@@ -147,7 +147,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRefreshGrid"
-                    style="@style/Widget.Material3.Button.IconButton"
+                    style="?attr/materialIconButtonStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:icon="@android:drawable/ic_popup_sync"
@@ -180,6 +180,32 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
+    <!-- FAB for adding new spot -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddSpot"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:contentDescription="Add new spot"
+        android:src="@android:drawable/ic_input_add"
+        app:fabSize="normal" />
+
+    <FrameLayout
+        android:id="@+id/loadingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:elevation="10dp">
+
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
+
+    </FrameLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
 

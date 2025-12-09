@@ -32,7 +32,7 @@
                 android:layout_height="24dp"
                 android:src="@android:drawable/ic_menu_search"
                 android:contentDescription="Search icon"
-                android:tint="@android:color/darker_gray" />
+                app:tint="@android:color/darker_gray" />
 
             <EditText
                 android:id="@+id/etSearchParkingLots"
@@ -60,6 +60,100 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
+    <!-- Filter Chips -->
+    <HorizontalScrollView
+        android:id="@+id/filterScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="72dp"
+        android:layout_marginStart="12dp"
+        android:scrollbars="none">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupFilters"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="false"
+            app:chipSpacingHorizontal="8dp">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipAll"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="All"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                app:chipBackgroundColor="@color/chip_filter_background"
+                app:checkedIconVisible="true"
+                android:checked="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipMotorcycle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🏍️ Motorcycle"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                app:chipBackgroundColor="@color/chip_filter_background"
+                app:checkedIconVisible="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipCar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🚗 Car"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                app:chipBackgroundColor="@color/chip_filter_background"
+                app:checkedIconVisible="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipSUV"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🚙 SUV"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                app:chipBackgroundColor="@color/chip_filter_background"
+                app:checkedIconVisible="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipPriceLow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💰 Price: Low"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                app:chipBackgroundColor="@color/chip_filter_background"
+                app:checkedIconVisible="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipNearby"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📍 Nearby"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                app:chipBackgroundColor="@color/chip_filter_background"
+                app:checkedIconVisible="true" />
+
+        </com.google.android.material.chip.ChipGroup>
+    </HorizontalScrollView>
+
+    <!-- Parking Lots List (List View) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvParkingLots"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="130dp"
+        android:visibility="gone"
+        android:background="@color/background_secondary" />
+
+    <!-- Toggle View Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabToggleView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:contentDescription="Toggle list view"
+        android:src="@android:drawable/ic_menu_sort_by_size"
+        app:fabSize="normal" />
+
     <!-- My Location Button -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabMyLocation"
@@ -70,13 +164,6 @@
         android:contentDescription="My location"
         android:src="@android:drawable/ic_menu_mylocation"
         app:fabSize="normal" />
-
-    <!-- Bottom Sheet for Parking Lot Details -->
-    <include
-        layout="@layout/bottom_sheet_parking_lot_details"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom" />
 
     <!-- Loading Indicator -->
     <ProgressBar

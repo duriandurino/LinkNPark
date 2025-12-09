@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.linknpark.R
 
 data class StaffParkingSpot(
+    val spotId: String,
     val spotCode: String,
     val status: String,
     val licensePlate: String? = null

@@ -29,6 +29,9 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.linknpark.ui.home.adapters.ParkingLotsAdapter
 
 class FindParkingFragment : Fragment(), FindParkingMapContract.View {
 
@@ -38,18 +41,29 @@ class FindParkingFragment : Fragment(), FindParkingMapContract.View {
     private lateinit var etSearchParkingLots: EditText
     private lateinit var btnClearSearch: ImageButton
     private lateinit var fabMyLocation: FloatingActionButton
+    private lateinit var fabToggleView: FloatingActionButton
+    private lateinit var rvParkingLots: RecyclerView
     private lateinit var progressBar: ProgressBar
-    private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
+    
+    // Filter chips
+    private lateinit var chipAll: com.google.android.material.chip.Chip
+    private lateinit var chipMotorcycle: com.google.android.material.chip.Chip
+    private lateinit var chipCar: com.google.android.material.chip.Chip
+    private lateinit var chipSUV: com.google.android.material.chip.Chip
+    private lateinit var chipPriceLow: com.google.android.material.chip.Chip
+    private lateinit var chipNearby: com.google.android.material.chip.Chip
 
-    // Bottom sheet views
-    private lateinit var tvBottomSheetLotName: TextView
-    private lateinit var tvBottomSheetAddress: TextView
-    private lateinit var tvBottomSheetAvailableSpots: TextView
-    private lateinit var tvBottomSheetPrice: TextView
-    private lateinit var btnViewParkingSpots: MaterialButton
+    // List adapter
+    private lateinit var parkingLotsAdapter: ParkingLotsAdapter
+    private var isListViewVisible = false
+    private var allParkingLots = listOf<ParkingLot>()
+    
+    // Filter state
+    private var selectedVehicleType: String? = null
+    private var sortByPriceAsc = false
+    private var sortByDistanceAsc = false
 
     private val mapMarkers = mutableMapOf<String, Marker>()
-    private var selectedParkingLot: ParkingLot? = null
     private val searchHandler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
 
@@ -82,24 +96,34 @@ class FindParkingFragment : Fragment(), FindParkingMapContract.View {
         etSearchParkingLots = view.findViewById(R.id.etSearchParkingLots)
         btnClearSearch = view.findViewById(R.id.btnClearSearch)
         fabMyLocation = view.findViewById(R.id.fabMyLocation)
+        fabToggleView = view.findViewById(R.id.fabToggleView)
+        rvParkingLots = view.findViewById(R.id.rvParkingLots)
         progressBar = view.findViewById(R.id.progressBar)
+        
+        // Initialize filter chips
+        chipAll = view.findViewById(R.id.chipAll)
+        chipMotorcycle = view.findViewById(R.id.chipMotorcycle)
+        chipCar = view.findViewById(R.id.chipCar)
+        chipSUV = view.findViewById(R.id.chipSUV)
+        chipPriceLow = view.findViewById(R.id.chipPriceLow)
+        chipNearby = view.findViewById(R.id.chipNearby)
 
-        // Initialize bottom sheet views
-        val bottomSheet = view.findViewById<View>(R.id.bottomSheetParkingLotDetails)
-        tvBottomSheetLotName = bottomSheet.findViewById(R.id.tvBottomSheetLotName)
-        tvBottomSheetAddress = bottomSheet.findViewById(R.id.tvBottomSheetAddress)
-        tvBottomSheetAvailableSpots = bottomSheet.findViewById(R.id.tvBottomSheetAvailableSpots)
-        tvBottomSheetPrice = bottomSheet.findViewById(R.id.tvBottomSheetPrice)
-        btnViewParkingSpots = bottomSheet.findViewById(R.id.btnViewParkingSpots)
+        // Setup parking lots list adapter
+        setupParkingLotsList()
+        
+        // Setup filter chips
+        setupFilterChips()
 
         // Setup MapView
         setupMapView()
 
-        // Setup bottom sheet
-        setupBottomSheet(bottomSheet)
-
         // Setup search functionality
         setupSearchBar()
+
+        // Setup toggle view button (switch between map and list)
+        fabToggleView.setOnClickListener {
+            toggleListView()
+        }
 
         // Setup my location button
         fabMyLocation.setOnClickListener {
@@ -130,6 +154,153 @@ class FindParkingFragment : Fragment(), FindParkingMapContract.View {
         }
     }
 
+    private fun setupParkingLotsList() {
+        parkingLotsAdapter = ParkingLotsAdapter(
+            onLotClick = { lot ->
+                // Center map on this lot and switch to map view
+                val geoPoint = GeoPoint(lot.location.latitude, lot.location.longitude)
+                mapView.controller.animateTo(geoPoint)
+                mapView.controller.setZoom(USER_LOCATION_ZOOM)
+                
+                // Switch to map view
+                if (isListViewVisible) {
+                    toggleListView()
+                }
+            },
+            onGoToMapClick = { lot ->
+                // Center map on this lot
+                val geoPoint = GeoPoint(lot.location.latitude, lot.location.longitude)
+                mapView.controller.animateTo(geoPoint)
+                mapView.controller.setZoom(USER_LOCATION_ZOOM)
+                
+                // Switch to map view
+                if (isListViewVisible) {
+                    toggleListView()
+                }
+                
+                Toast.makeText(requireContext(), "Centered on ${lot.name}", Toast.LENGTH_SHORT).show()
+            },
+            onViewSpotsClick = { lot ->
+                navigateToParkingSpotSelection(lot)
+            }
+        )
+        
+        rvParkingLots.layoutManager = LinearLayoutManager(requireContext())
+        rvParkingLots.adapter = parkingLotsAdapter
+    }
+    
+    private fun setupFilterChips() {
+        // Vehicle type chips - mutually exclusive with "All"
+        chipAll.setOnClickListener {
+            resetVehicleFilters()
+            chipAll.isChecked = true
+            applyFilters()
+        }
+        
+        chipMotorcycle.setOnClickListener {
+            chipAll.isChecked = false
+            selectedVehicleType = if (chipMotorcycle.isChecked) "MOTORCYCLE" else null
+            applyFilters()
+        }
+        
+        chipCar.setOnClickListener {
+            chipAll.isChecked = false
+            selectedVehicleType = if (chipCar.isChecked) "CAR" else null
+            applyFilters()
+        }
+        
+        chipSUV.setOnClickListener {
+            chipAll.isChecked = false
+            selectedVehicleType = if (chipSUV.isChecked) "SUV" else null
+            applyFilters()
+        }
+        
+        // Sort chips - toggle behavior
+        chipPriceLow.setOnClickListener {
+            sortByPriceAsc = chipPriceLow.isChecked
+            if (sortByPriceAsc) {
+                sortByDistanceAsc = false
+                chipNearby.isChecked = false
+            }
+            applyFilters()
+        }
+        
+        chipNearby.setOnClickListener {
+            sortByDistanceAsc = chipNearby.isChecked
+            if (sortByDistanceAsc) {
+                sortByPriceAsc = false
+                chipPriceLow.isChecked = false
+            }
+            applyFilters()
+        }
+    }
+    
+    private fun resetVehicleFilters() {
+        selectedVehicleType = null
+        chipMotorcycle.isChecked = false
+        chipCar.isChecked = false
+        chipSUV.isChecked = false
+    }
+    
+    private fun applyFilters() {
+        var filteredLots = allParkingLots.toList()
+        
+        // Apply vehicle type filter
+        selectedVehicleType?.let { vehicleType ->
+            filteredLots = filteredLots.filter { lot ->
+                // For now, assume all lots support all vehicle types
+                // In production, this would check lot.supportedVehicleTypes
+                when (vehicleType) {
+                    "MOTORCYCLE" -> lot.pricePerHour <= 30.0  // Lower rate for motorcycles
+                    "SUV" -> lot.availableSpots > 0  // SUVs need more space
+                    else -> true  // CAR - all lots support cars
+                }
+            }
+        }
+        
+        // Apply sorting
+        filteredLots = when {
+            sortByPriceAsc -> filteredLots.sortedBy { it.pricePerHour }
+            sortByDistanceAsc -> {
+                // Mock distance sorting - in production use actual user location
+                filteredLots.shuffled()  // Simulated "nearby" sorting
+            }
+            else -> filteredLots
+        }
+        
+        // Update the list and map
+        parkingLotsAdapter.submitList(filteredLots)
+        displayParkingLots(filteredLots)
+        
+        // Show filter result message
+        val filterMsg = when {
+            selectedVehicleType != null -> "${filteredLots.size} ${selectedVehicleType?.lowercase()} parking lots"
+            sortByPriceAsc -> "${filteredLots.size} lots sorted by price"
+            sortByDistanceAsc -> "${filteredLots.size} nearby lots"
+            else -> "${filteredLots.size} parking lots"
+        }
+        Toast.makeText(requireContext(), filterMsg, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun toggleListView() {
+        isListViewVisible = !isListViewVisible
+        
+        if (isListViewVisible) {
+            mapView.visibility = View.GONE
+            rvParkingLots.visibility = View.VISIBLE
+            fabToggleView.setImageResource(android.R.drawable.ic_dialog_map)
+            fabMyLocation.visibility = View.GONE
+            
+            // Update list with current parking lots
+            parkingLotsAdapter.submitList(allParkingLots)
+        } else {
+            mapView.visibility = View.VISIBLE
+            rvParkingLots.visibility = View.GONE
+            fabToggleView.setImageResource(android.R.drawable.ic_menu_sort_by_size)
+            fabMyLocation.visibility = View.VISIBLE
+        }
+    }
+
     private fun setupMapView() {
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
@@ -147,34 +318,6 @@ class FindParkingFragment : Fragment(), FindParkingMapContract.View {
         // Set default center (will be updated by user location or default coordinates)
         val defaultCenter = GeoPoint(14.5995, 120.9842) // Manila, Philippines
         mapView.controller.setCenter(defaultCenter)
-    }
-
-    private fun setupBottomSheet(bottomSheet: View) {
-        bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet)
-        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
-        bottomSheetBehavior.peekHeight = 200
-
-        // Handle bottom sheet state changes
-        bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
-            override fun onStateChanged(bottomSheet: View, newState: Int) {
-                if (newState == BottomSheetBehavior.STATE_HIDDEN) {
-                    deselectAllMarkers()
-                    selectedParkingLot = null
-                }
-            }
-
-            override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                // Optional: handle slide animations
-            }
-        })
-
-        // Handle view parking spots button click
-        btnViewParkingSpots.setOnClickListener {
-            selectedParkingLot?.let { lot ->
-                navigateToParkingSpotSelection(lot)
-                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
-            }
-        }
     }
 
     private fun setupSearchBar() {
@@ -232,6 +375,14 @@ class FindParkingFragment : Fragment(), FindParkingMapContract.View {
     }
 
     override fun displayParkingLots(lots: List<ParkingLot>) {
+        // Store lots for list view
+        allParkingLots = lots
+        
+        // Update list adapter if visible
+        if (isListViewVisible) {
+            parkingLotsAdapter.submitList(lots)
+        }
+        
         // Clear existing markers
         mapMarkers.values.forEach { marker ->
             mapView.overlays.remove(marker)
@@ -246,9 +397,10 @@ class FindParkingFragment : Fragment(), FindParkingMapContract.View {
             marker.title = lot.name
             marker.snippet = lot.address
 
-            // Set marker click listener
+            // Set marker click listener - centers map on the marker
             marker.setOnMarkerClickListener { clickedMarker, _ ->
-                onMarkerClicked(lot, clickedMarker)
+                mapView.controller.animateTo(clickedMarker.position)
+                mapView.controller.setZoom(USER_LOCATION_ZOOM)
                 true
             }
 
@@ -268,61 +420,6 @@ class FindParkingFragment : Fragment(), FindParkingMapContract.View {
         }
     }
 
-    private fun onMarkerClicked(lot: ParkingLot, marker: Marker) {
-        // Deselect previous marker
-        deselectAllMarkers()
-
-        // Highlight selected marker (change icon or color if needed)
-        // For now, we'll just show the bottom sheet
-
-        // Show bottom sheet with lot details
-        showBottomSheet(lot)
-
-        // Center map on marker
-        mapView.controller.animateTo(marker.position)
-    }
-
-    private fun deselectAllMarkers() {
-        // Reset all markers to default state
-        // Implementation depends on how you want to style selected vs unselected markers
-    }
-
-    override fun showBottomSheet(lot: ParkingLot) {
-        selectedParkingLot = lot
-
-        // Populate bottom sheet with lot details
-        tvBottomSheetLotName.text = lot.name
-        tvBottomSheetAddress.text = lot.address
-        tvBottomSheetPrice.text = String.format("PHP %.2f per hour", lot.pricePerHour)
-
-        // Calculate availability percentage and set color
-        val availabilityPercentage = if (lot.totalSpots > 0) {
-            lot.availableSpots.toDouble() / lot.totalSpots.toDouble()
-        } else {
-            0.0
-        }
-
-        tvBottomSheetAvailableSpots.text = "${lot.availableSpots} / ${lot.totalSpots} spots"
-
-        when {
-            availabilityPercentage > 0.2 -> {
-                tvBottomSheetAvailableSpots.setTextColor(Color.parseColor("#4CAF50")) // Green
-            }
-            availabilityPercentage in 0.05..0.2 -> {
-                tvBottomSheetAvailableSpots.setTextColor(Color.parseColor("#FFC107")) // Yellow
-            }
-            else -> {
-                tvBottomSheetAvailableSpots.setTextColor(Color.parseColor("#F44336")) // Red
-            }
-        }
-
-        // Show bottom sheet
-        bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-    }
-
-    override fun hideBottomSheet() {
-        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
-    }
 
     override fun centerMapOnUserLocation(location: Location) {
         val geoPoint = GeoPoint(location.latitude, location.longitude)

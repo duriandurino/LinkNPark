@@ -92,6 +92,7 @@ class FindParkingPresenter(
                 val result = withContext(Dispatchers.IO) {
                     repository.reserveSpot(
                         userId = userId,
+                        lotId = spot.lotId,
                         spotCode = spot.spotCode,
                         spotNumber = spot.spotNumber,
                         licensePlate = licensePlate,

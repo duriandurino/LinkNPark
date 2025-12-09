@@ -133,5 +133,44 @@ class HomePresenter(
     override fun onViewBookingsClicked() {
         // Navigation will be handled by the fragment/activity
     }
-}
 
+    override fun onEndSession(session: com.example.linknpark.model.ParkingSession) {
+        view?.showLoading(true)
+        
+        presenterScope.launch {
+            try {
+                val now = java.util.Date()
+                
+                // Calculate fee 
+                val entryTime = session.enteredAt?.toDate()
+                val durationMs = if (entryTime != null) now.time - entryTime.time else 0L
+                val hoursParked = durationMs / (1000.0 * 60 * 60)
+                val totalFee = hoursParked * session.hourlyRate
+                
+                // Use repository to complete session
+                val result = withContext(Dispatchers.IO) {
+                    repository.completeSession(
+                        sessionId = session.sessionId,
+                        spotId = session.spotId,
+                        totalAmount = totalFee,
+                        paymentMethod = "PENDING"
+                    )
+                }
+                
+                result.onSuccess {
+                    view?.showLoading(false)
+                    view?.showSessionEnded("Session ended! Total: PHP ${String.format("%.2f", totalFee)}")
+                    Log.d(TAG, "Session ended successfully: ${session.sessionId}")
+                }.onFailure { e ->
+                    view?.showLoading(false)
+                    view?.showError("Failed to end session: ${e.message}")
+                    Log.e(TAG, "Error ending session", e)
+                }
+            } catch (e: Exception) {
+                view?.showLoading(false)
+                view?.showError("Failed to end session: ${e.message}")
+                Log.e(TAG, "Error ending session", e)
+            }
+        }
+    }
+}
