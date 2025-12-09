@@ -16,6 +16,7 @@ interface DriverRepository {
     // Reservations
     suspend fun reserveSpot(
         userId: String,
+        lotId: String,
         spotCode: String,
         spotNumber: Int,
         licensePlate: String,

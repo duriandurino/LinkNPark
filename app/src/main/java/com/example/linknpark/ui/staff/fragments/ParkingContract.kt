@@ -9,6 +9,7 @@ interface ParkingContract {
         fun showStats(total: Int, available: Int, occupied: Int)
         fun showLoading(isLoading: Boolean)
         fun showError(message: String)
+        fun showUpdateSuccess(message: String)
     }
     
     interface Presenter {
@@ -16,6 +17,8 @@ interface ParkingContract {
         fun detach()
         fun loadParkingData()
         fun refresh()
+        fun updateSpotStatus(spotId: String, newStatus: String)
     }
 }
+
 

@@ -71,10 +71,10 @@ class FirebaseStaffRepository : StaffRepository {
 
     override suspend fun getParkingStats(lotId: String): Result<ParkingStats> {
         return try {
-            Log.d(TAG, "Fetching parking stats for lot: $lotId")
+            Log.d(TAG, "Fetching parking stats for all spots")
             
+            // Query all parking spots (ignoring lotId for now to get aggregate stats)
             val snapshot = firestore.collection("parking_spots")
-                .whereEqualTo("lot_id", lotId)
                 .get()
                 .await()
 
@@ -84,13 +84,13 @@ class FirebaseStaffRepository : StaffRepository {
             var reservedSpots = 0
 
             snapshot.documents.forEach { doc ->
-                val isAvailable = doc.getBoolean("is_available") ?: true
-                val isOccupied = doc.getBoolean("is_occupied") ?: false
-                val isReserved = doc.getBoolean("is_reserved") ?: false
-
-                if (isAvailable) availableSpots++
-                if (isOccupied) occupiedSpots++
-                if (isReserved) reservedSpots++
+                val status = doc.getString("status") ?: "AVAILABLE"
+                
+                when (status) {
+                    "AVAILABLE" -> availableSpots++
+                    "OCCUPIED" -> occupiedSpots++
+                    "RESERVED" -> reservedSpots++
+                }
             }
 
             val stats = ParkingStats(
@@ -100,7 +100,7 @@ class FirebaseStaffRepository : StaffRepository {
                 reservedSpots = reservedSpots
             )
 
-            Log.d(TAG, "Stats: $stats")
+            Log.d(TAG, "Stats: total=$totalSpots, available=$availableSpots, occupied=$occupiedSpots, reserved=$reservedSpots")
             Result.success(stats)
 
         } catch (e: Exception) {
@@ -114,7 +114,7 @@ class FirebaseStaffRepository : StaffRepository {
             Log.d(TAG, "Fetching recent activity (limit: $limit)")
             
             val snapshot = firestore.collection("parking_sessions")
-                .orderBy("entered_at", Query.Direction.DESCENDING)
+                .orderBy("entryTime", Query.Direction.DESCENDING)
                 .limit(limit.toLong())
                 .get()
                 .await()
@@ -123,25 +123,25 @@ class FirebaseStaffRepository : StaffRepository {
                 try {
                     ParkingSession(
                         sessionId = doc.id,
-                        userId = doc.getString("user_id") ?: "",
-                        lotId = doc.getString("lot_id") ?: "",
-                        spotCode = doc.getString("spot_code") ?: "",
-                        spotNumber = doc.getLong("spot_number")?.toInt() ?: 0,
-                        licensePlate = doc.getString("license_plate") ?: "",
-                        carLabel = doc.getString("car_label") ?: "",
-                        vehicleType = doc.getString("vehicle_type") ?: "STANDARD",
-                        enteredAt = doc.getTimestamp("entered_at"),
-                        exitedAt = doc.getTimestamp("exited_at"),
-                        durationMinutes = doc.getLong("duration_minutes")?.toInt() ?: 0,
-                        hourlyRate = doc.getDouble("hourly_rate") ?: 50.0,
-                        totalAmount = doc.getDouble("total_amount") ?: 0.0,
-                        amountPaid = doc.getDouble("amount_paid") ?: 0.0,
-                        paymentId = doc.getString("payment_id"),
-                        paymentStatus = doc.getString("payment_status") ?: "UNPAID",
+                        userId = doc.getString("userId") ?: "",
+                        lotId = doc.getString("lotId") ?: "",
+                        spotCode = doc.getString("spotCode") ?: "",
+                        spotNumber = doc.getLong("spotNumber")?.toInt() ?: 0,
+                        licensePlate = doc.getString("licensePlate") ?: "",
+                        carLabel = doc.getString("carLabel") ?: "",
+                        vehicleType = doc.getString("vehicleType") ?: "STANDARD",
+                        enteredAt = doc.getTimestamp("entryTime"),
+                        exitedAt = doc.getTimestamp("exitTime"),
+                        durationMinutes = doc.getLong("durationMinutes")?.toInt() ?: 0,
+                        hourlyRate = doc.getDouble("hourlyRate") ?: 50.0,
+                        totalAmount = doc.getDouble("totalAmount") ?: 0.0,
+                        amountPaid = doc.getDouble("amountPaid") ?: 0.0,
+                        paymentId = doc.getString("paymentId"),
+                        paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
                         status = doc.getString("status") ?: "ACTIVE",
-                        entryMethod = doc.getString("entry_method") ?: "CAMERA",
-                        exitMethod = doc.getString("exit_method"),
-                        createdAt = doc.getTimestamp("created_at")
+                        entryMethod = doc.getString("entryMethod") ?: "DEVTOOLS",
+                        exitMethod = doc.getString("exitMethod"),
+                        createdAt = doc.getTimestamp("createdAt")
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing session: ${doc.id}", e)

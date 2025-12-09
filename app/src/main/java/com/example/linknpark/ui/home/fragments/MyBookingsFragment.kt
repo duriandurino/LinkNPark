@@ -26,7 +26,7 @@ class MyBookingsFragment : Fragment(), MyBookingsContract.View {
     private lateinit var tvNoHistory: TextView
     private lateinit var progressBar: ProgressBar
 
-    private val reservationsAdapter = ReservationsAdapter()
+    private lateinit var reservationsAdapter: ReservationsAdapter
     private val historyAdapter = SessionHistoryAdapter()
 
     override fun onCreateView(
@@ -46,6 +46,11 @@ class MyBookingsFragment : Fragment(), MyBookingsContract.View {
         tvNoReservations = view.findViewById(R.id.tvNoReservations)
         tvNoHistory = view.findViewById(R.id.tvNoHistory)
         progressBar = view.findViewById(R.id.progressBar)
+
+        // Initialize adapter with cancel callback
+        reservationsAdapter = ReservationsAdapter { reservation ->
+            presenter.onCancelReservation(reservation.reservationId)
+        }
 
         // Setup RecyclerViews
         rvReservations.layoutManager = LinearLayoutManager(requireContext())

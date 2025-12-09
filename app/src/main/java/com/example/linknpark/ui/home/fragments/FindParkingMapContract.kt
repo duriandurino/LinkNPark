@@ -7,8 +7,6 @@ interface FindParkingMapContract {
 
     interface View {
         fun displayParkingLots(lots: List<ParkingLot>)
-        fun showBottomSheet(lot: ParkingLot)
-        fun hideBottomSheet()
         fun centerMapOnUserLocation(location: Location)
         fun showLoading(show: Boolean)
         fun showError(message: String)

@@ -133,5 +133,47 @@ class HomePresenter(
     override fun onViewBookingsClicked() {
         // Navigation will be handled by the fragment/activity
     }
+
+    override fun onEndSession(session: com.example.linknpark.model.ParkingSession) {
+        view?.showLoading(true)
+        
+        val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val now = java.util.Date()
+        
+        // Calculate fee 
+        val entryTime = session.enteredAt?.toDate()
+        val durationMs = if (entryTime != null) now.time - entryTime.time else 0L
+        val hoursParked = durationMs / (1000.0 * 60 * 60)
+        val totalFee = hoursParked * session.hourlyRate
+        
+        // Update session in Firestore
+        firestore.collection("parking_sessions")
+            .document(session.sessionId)
+            .update(
+                "status", "COMPLETED",
+                "exitTime", com.google.firebase.Timestamp.now(),
+                "totalAmount", totalFee
+            )
+            .addOnSuccessListener {
+                // Also mark spot as available
+                if (session.spotCode.isNotEmpty()) {
+                    firestore.collection("parking_spots")
+                        .whereEqualTo("code", session.spotCode)
+                        .get()
+                        .addOnSuccessListener { docs ->
+                            docs.documents.firstOrNull()?.reference?.update("status", "AVAILABLE")
+                        }
+                }
+                
+                view?.showLoading(false)
+                view?.showSessionEnded("Session ended! Total: PHP ${String.format("%.2f", totalFee)}")
+                Log.d(TAG, "Session ended successfully: ${session.sessionId}")
+            }
+            .addOnFailureListener { e ->
+                view?.showLoading(false)
+                view?.showError("Failed to end session: ${e.message}")
+                Log.e(TAG, "Error ending session", e)
+            }
+    }
 }
 

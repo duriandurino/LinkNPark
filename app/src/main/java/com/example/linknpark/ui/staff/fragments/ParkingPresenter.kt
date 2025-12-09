@@ -5,6 +5,7 @@ import com.example.linknpark.data.FirebaseStaffRepository
 import com.example.linknpark.data.StaffRepository
 import com.example.linknpark.model.ParkingSpot
 import com.example.linknpark.ui.staff.adapter.StaffParkingSpot
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,6 +19,7 @@ class ParkingPresenter(
 
     private var view: ParkingContract.View? = null
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val firestore = FirebaseFirestore.getInstance()
     private val TAG = "ParkingPresenter"
 
     override fun attach(view: ParkingContract.View) {
@@ -39,6 +41,7 @@ class ParkingPresenter(
             // Convert ParkingSpot to StaffParkingSpot
             val staffSpots = spots.map { spot ->
                 StaffParkingSpot(
+                    spotId = spot.spotId,
                     spotCode = spot.spotCode,
                     status = spot.status,
                     licensePlate = spot.currentCarLabel
@@ -80,5 +83,24 @@ class ParkingPresenter(
             }
         }
     }
+
+    override fun updateSpotStatus(spotId: String, newStatus: String) {
+        view?.showLoading(true)
+        
+        firestore.collection("parking_spots")
+            .document(spotId)
+            .update("status", newStatus)
+            .addOnSuccessListener {
+                Log.d(TAG, "Updated spot $spotId to $newStatus")
+                view?.showLoading(false)
+                view?.showUpdateSuccess("Spot updated to $newStatus")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to update spot $spotId", e)
+                view?.showLoading(false)
+                view?.showError("Failed to update: ${e.message}")
+            }
+    }
 }
+
 

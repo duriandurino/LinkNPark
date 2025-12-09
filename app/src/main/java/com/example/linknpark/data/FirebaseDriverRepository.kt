@@ -30,7 +30,7 @@ class FirebaseDriverRepository : DriverRepository {
         parkingLotListener?.remove()
 
         parkingLotListener = firestore.collection("parking_lots")
-            .whereEqualTo("isActive", true)
+            .whereEqualTo("status", "ACTIVE")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e(TAG, "Error listening to parking lots", error)
@@ -48,8 +48,55 @@ class FirebaseDriverRepository : DriverRepository {
                 } ?: emptyList()
 
                 Log.d(TAG, "Real-time update: ${lots.size} parking lots")
-                callback(lots)
+                
+                // Enrich with actual spot counts from parking_spots collection
+                if (lots.isNotEmpty()) {
+                    enrichLotsWithSpotCounts(lots, callback)
+                } else {
+                    callback(lots)
+                }
             }
+    }
+    
+    private fun enrichLotsWithSpotCounts(lots: List<ParkingLot>, callback: (List<ParkingLot>) -> Unit) {
+        val enrichedLots = mutableListOf<ParkingLot>()
+        var completedCount = 0
+        
+        lots.forEach { lot ->
+            firestore.collection("parking_spots")
+                .whereEqualTo("lotId", lot.lotId)
+                .get()
+                .addOnSuccessListener { spotDocs ->
+                    val totalSpots = spotDocs.size()
+                    val availableSpots = spotDocs.documents.count { doc ->
+                        val status = doc.getString("status") ?: "AVAILABLE"
+                        status == "AVAILABLE"
+                    }
+                    
+                    Log.d(TAG, "Lot ${lot.name}: $availableSpots/$totalSpots spots (from parking_spots)")
+                    
+                    // Update lot with actual counts
+                    val enrichedLot = lot.copy().apply {
+                        this.totalSpots = totalSpots
+                        this.availableSpots = availableSpots
+                    }
+                    enrichedLots.add(enrichedLot)
+                    
+                    completedCount++
+                    if (completedCount == lots.size) {
+                        callback(enrichedLots)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to get spots for lot ${lot.lotId}", e)
+                    enrichedLots.add(lot) // Use original lot on error
+                    
+                    completedCount++
+                    if (completedCount == lots.size) {
+                        callback(enrichedLots)
+                    }
+                }
+        }
     }
 
     suspend fun searchParkingLots(query: String): List<ParkingLot> {
@@ -59,7 +106,7 @@ class FirebaseDriverRepository : DriverRepository {
             if (query.isEmpty()) {
                 // Return all active lots if query is empty
                 val snapshot = firestore.collection("parking_lots")
-                    .whereEqualTo("isActive", true)
+                    .whereEqualTo("status", "ACTIVE")
                     .get()
                     .await()
 
@@ -77,7 +124,7 @@ class FirebaseDriverRepository : DriverRepository {
             val lowerQuery = query.lowercase()
 
             val nameResults = firestore.collection("parking_lots")
-                .whereEqualTo("isActive", true)
+                .whereEqualTo("status", "ACTIVE")
                 .get()
                 .await()
 

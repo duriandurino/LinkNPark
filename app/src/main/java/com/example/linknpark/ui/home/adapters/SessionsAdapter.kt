@@ -7,10 +7,14 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.linknpark.R
 import com.example.linknpark.model.ParkingSession
+import com.google.android.material.button.MaterialButton
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
-class SessionsAdapter : RecyclerView.Adapter<SessionsAdapter.SessionViewHolder>() {
+class SessionsAdapter(
+    private val onEndSessionClick: ((ParkingSession) -> Unit)? = null
+) : RecyclerView.Adapter<SessionsAdapter.SessionViewHolder>() {
 
     private var sessions = listOf<ParkingSession>()
 
@@ -26,34 +30,69 @@ class SessionsAdapter : RecyclerView.Adapter<SessionsAdapter.SessionViewHolder>(
     }
 
     override fun onBindViewHolder(holder: SessionViewHolder, position: Int) {
-        holder.bind(sessions[position])
+        holder.bind(sessions[position], onEndSessionClick)
     }
 
     override fun getItemCount() = sessions.size
 
     class SessionViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
         private val tvSpotCode: TextView = itemView.findViewById(R.id.tvSpotCode)
+        private val tvRunningTime: TextView = itemView.findViewById(R.id.tvRunningTime)
         private val tvLicensePlate: TextView = itemView.findViewById(R.id.tvLicensePlate)
         private val tvEntryTime: TextView = itemView.findViewById(R.id.tvEntryTime)
         private val tvDuration: TextView = itemView.findViewById(R.id.tvDuration)
         private val tvAmount: TextView = itemView.findViewById(R.id.tvAmount)
+        private val btnEndSession: MaterialButton = itemView.findViewById(R.id.btnEndSession)
 
-        fun bind(session: ParkingSession) {
+        fun bind(session: ParkingSession, onEndSessionClick: ((ParkingSession) -> Unit)?) {
             tvSpotCode.text = "Spot ${session.spotCode}"
-            tvLicensePlate.text = session.licensePlate
+            tvLicensePlate.text = session.licensePlate.ifEmpty { "Unknown vehicle" }
+            
+            // Status badge
+            tvStatus.text = when (session.status) {
+                "ACTIVE" -> "🟢 ACTIVE"
+                "COMPLETED" -> "✓ COMPLETED"
+                else -> session.status
+            }
             
             val dateFormat = SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault())
             val entryTime = session.enteredAt?.toDate()
             
             if (entryTime != null) {
                 tvEntryTime.text = "Entered: ${dateFormat.format(entryTime)}"
+                
+                // Calculate running time
+                val now = Date()
+                val durationMs = now.time - entryTime.time
+                val durationMinutes = (durationMs / 60000).toInt()
+                val hours = durationMinutes / 60
+                val minutes = durationMinutes % 60
+                
+                tvRunningTime.text = if (hours > 0) "⏱ ${hours}h ${minutes}m" else "⏱ ${minutes}m"
+                tvDuration.text = "Duration: $durationMinutes min"
+                
+                // Calculate estimated fee
+                val hourlyRate = session.hourlyRate
+                val hoursParked = durationMs / (1000.0 * 60 * 60)
+                val estimatedFee = hoursParked * hourlyRate
+                tvAmount.text = "Est. Fee: PHP ${String.format("%.2f", estimatedFee)}"
             } else {
                 tvEntryTime.text = "Entry time not available"
+                tvRunningTime.text = "⏱ --"
+                tvDuration.text = "Duration: Unknown"
+                tvAmount.text = "Est. Fee: --"
             }
             
-            tvDuration.text = "${session.durationMinutes} minutes"
-            tvAmount.text = "PHP ${String.format("%.2f", session.totalAmount)}"
+            // End session button
+            if (session.status == "ACTIVE" && onEndSessionClick != null) {
+                btnEndSession.visibility = View.VISIBLE
+                btnEndSession.setOnClickListener { onEndSessionClick(session) }
+            } else {
+                btnEndSession.visibility = View.GONE
+            }
         }
     }
 }
+
 

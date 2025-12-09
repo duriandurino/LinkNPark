@@ -5,7 +5,8 @@
     android:layout_height="wrap_content"
     android:layout_marginVertical="4dp"
     app:cardCornerRadius="12dp"
-    app:cardElevation="2dp">
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="#E8F5E9">
 
     <LinearLayout
         android:orientation="vertical"
@@ -13,15 +14,43 @@
         android:layout_height="wrap_content"
         android:padding="16dp">
 
+        <!-- Status Badge -->
         <TextView
-            android:id="@+id/tvSpotCode"
+            android:id="@+id/tvStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Spot A3"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
+            android:text="🟢 ACTIVE"
+            android:textColor="@color/status_available"
+            android:textSize="12sp"
             android:fontFamily="sans-serif-medium"
             android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/tvSpotCode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Spot A3"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-medium" />
+
+            <TextView
+                android:id="@+id/tvRunningTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⏱ 2h 15m"
+                android:textColor="@color/status_occupied"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium" />
+
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvLicensePlate"
@@ -42,7 +71,7 @@
             android:text="Entered: Oct 25, 01:15 PM"
             android:textColor="@color/text_secondary"
             android:textSize="14sp"
-            android:layout_marginBottom="4dp"
+            android:layout_marginBottom="8dp"
             android:drawableStart="@android:drawable/ic_menu_recent_history"
             android:drawablePadding="8dp"
             android:drawableTint="@color/text_secondary" />
@@ -51,25 +80,45 @@
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp">
+            android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tvDuration"
+            <LinearLayout
+                android:orientation="vertical"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="120 minutes"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp" />
+                android:layout_weight="1">
 
-            <TextView
-                android:id="@+id/tvAmount"
+                <TextView
+                    android:id="@+id/tvDuration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Duration: 120 min"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tvAmount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Est. Fee: PHP 100.00"
+                    android:textColor="@color/primary_blue"
+                    android:textSize="16sp"
+                    android:fontFamily="sans-serif-medium" />
+
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnEndSession"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="PHP 100.00"
-                android:textColor="@color/primary_blue"
-                android:textSize="16sp"
-                android:fontFamily="sans-serif-medium" />
+                android:layout_height="40dp"
+                android:text="End Session"
+                android:textSize="12sp"
+                android:textAllCaps="false"
+                app:cornerRadius="8dp"
+                android:textColor="@color/status_occupied"
+                app:strokeColor="@color/status_occupied" />
+
         </LinearLayout>
 
     </LinearLayout>

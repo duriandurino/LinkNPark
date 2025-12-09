@@ -54,17 +54,36 @@
             android:drawablePadding="8dp"
             android:drawableTint="@color/text_secondary" />
 
-        <TextView
-            android:id="@+id/tvAmount"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="PHP 100.00"
-            android:textColor="@color/primary_blue"
-            android:textSize="16sp"
-            android:fontFamily="sans-serif-medium"
-            android:drawableStart="@android:drawable/ic_dialog_info"
-            android:drawablePadding="8dp"
-            android:drawableTint="@color/primary_blue" />
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvAmount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="PHP 100.00"
+                android:textColor="@color/primary_blue"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium"
+                android:drawableStart="@android:drawable/ic_dialog_info"
+                android:drawablePadding="8dp"
+                android:drawableTint="@color/primary_blue" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCancel"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Cancel"
+                android:textColor="@color/status_occupied"
+                android:textSize="12sp"
+                android:minWidth="80dp" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

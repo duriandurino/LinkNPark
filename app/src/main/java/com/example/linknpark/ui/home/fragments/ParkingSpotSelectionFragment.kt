@@ -152,6 +152,7 @@ class ParkingSpotSelectionFragment : Fragment(), ParkingSpotSelectionContract.Vi
 
         val tvSpotCode = dialog.findViewById<TextView>(R.id.tvSpotCode)
         val spinnerVehicle = dialog.findViewById<Spinner>(R.id.spinnerVehicle)
+        val btnSelectStartTime = dialog.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnSelectStartTime)
         val spinnerDuration = dialog.findViewById<Spinner>(R.id.spinnerDuration)
         val tvTotalAmount = dialog.findViewById<TextView>(R.id.tvTotalAmount)
         val btnConfirm = dialog.findViewById<Button>(R.id.btnConfirm)
@@ -159,21 +160,62 @@ class ParkingSpotSelectionFragment : Fragment(), ParkingSpotSelectionContract.Vi
 
         tvSpotCode.text = "Reserve Spot ${spot.spotCode}"
 
+        // Track selected start time (null = now)
+        var selectedStartTime: java.util.Calendar? = null
+        val dateFormat = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault())
+
         // Setup vehicle spinner
         val vehicleNames = userVehicles.map { "${it.licensePlate} - ${it.make} ${it.model}" }
         spinnerVehicle.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, vehicleNames)
             .apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
 
+        // Setup start time picker
+        btnSelectStartTime.setOnClickListener {
+            val now = java.util.Calendar.getInstance()
+            
+            // Show Date Picker first
+            android.app.DatePickerDialog(
+                requireContext(),
+                { _, year, month, day ->
+                    // Then show Time Picker
+                    android.app.TimePickerDialog(
+                        requireContext(),
+                        { _, hour, minute ->
+                            val calendar = java.util.Calendar.getInstance()
+                            calendar.set(year, month, day, hour, minute)
+                            
+                            if (calendar.timeInMillis <= System.currentTimeMillis()) {
+                                // Selected time is in the past, use "Now"
+                                selectedStartTime = null
+                                btnSelectStartTime.text = "Now (Immediate)"
+                            } else {
+                                selectedStartTime = calendar
+                                btnSelectStartTime.text = dateFormat.format(calendar.time)
+                            }
+                        },
+                        now.get(java.util.Calendar.HOUR_OF_DAY),
+                        now.get(java.util.Calendar.MINUTE),
+                        false
+                    ).show()
+                },
+                now.get(java.util.Calendar.YEAR),
+                now.get(java.util.Calendar.MONTH),
+                now.get(java.util.Calendar.DAY_OF_MONTH)
+            ).show()
+        }
+
         // Setup duration spinner
         val durations = listOf("1 hour", "2 hours", "3 hours", "4 hours", "6 hours", "8 hours")
+        val durationHours = listOf(1, 2, 3, 4, 6, 8)
         spinnerDuration.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, durations)
             .apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
 
         // Update total amount when duration changes
+        val hourlyRate = 50.0 // TODO: Get from parking lot
         spinnerDuration.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val hours = position + 1
-                val amount = hours * 50.0
+                val hours = durationHours[position]
+                val amount = hours * hourlyRate
                 tvTotalAmount.text = "Total: PHP ${String.format("%.2f", amount)}"
             }
 
@@ -184,9 +226,9 @@ class ParkingSpotSelectionFragment : Fragment(), ParkingSpotSelectionContract.Vi
             val vehicleIndex = spinnerVehicle.selectedItemPosition
             val durationIndex = spinnerDuration.selectedItemPosition
             val vehicleId = userVehicles[vehicleIndex].vehicleId
-            val durationHours = durationIndex + 1
+            val hours = durationHours[durationIndex]
 
-            presenter.onReserveClicked(spot, vehicleId, durationHours)
+            presenter.onReserveClicked(spot, vehicleId, hours)
             dialog.dismiss()
         }
 
