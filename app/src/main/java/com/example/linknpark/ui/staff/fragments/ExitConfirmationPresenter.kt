@@ -1,4 +1,4 @@
-package com.example.linknpark.ui.staff.fragments
+﻿package com.example.linknpark.ui.staff.fragments
 
 import com.example.linknpark.data.FirebaseStaffRepository
 import com.example.linknpark.data.StaffRepository
@@ -79,7 +79,7 @@ class ExitConfirmationPresenter(
                 
                 result.onSuccess {
                     view?.showLoading(false)
-                    view?.showPaymentSuccess("Payment confirmed: ₱${String.format("%.2f", totalAmount)}")
+                    view?.showPaymentSuccess("Payment confirmed: Γé▒${String.format("%.2f", totalAmount)}")
                     loadPendingExits() // Refresh list
                 }.onFailure { error ->
                     view?.showLoading(false)
@@ -126,7 +126,7 @@ class ExitConfirmationPresenter(
                     
                     confirmResult.onSuccess {
                         view?.showLoading(false)
-                        view?.showPaymentSuccess("Override applied: ₱${String.format("%.2f", newAmount)}")
+                        view?.showPaymentSuccess("Override applied: Γé▒${String.format("%.2f", newAmount)}")
                         loadPendingExits() // Refresh list
                     }.onFailure { error ->
                         view?.showLoading(false)
