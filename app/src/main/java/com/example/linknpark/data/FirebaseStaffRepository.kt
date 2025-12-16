@@ -309,6 +309,7 @@ class FirebaseStaffRepository : StaffRepository {
         return try {
             val snapshot = firestore.collection("parking_sessions")
                 .whereEqualTo("status", "ACTIVE")
+                .whereIn("paymentStatus", listOf("PENDING", "PENDING_CONFIRMATION"))  // ✅ FIXED
                 .orderBy("entryTime", Query.Direction.ASCENDING)
                 .get()
                 .await()
@@ -319,7 +320,7 @@ class FirebaseStaffRepository : StaffRepository {
                         sessionId = doc.id,
                         userId = doc.getString("userId") ?: "",
                         lotId = doc.getString("lotId") ?: "",
-                        spotId = doc.getString("spotId"),
+                        spotId = doc.getString("spotId"),  // ✅ Make sure this is populated
                         spotCode = doc.getString("spotCode") ?: "",
                         spotNumber = doc.getLong("spotNumber")?.toInt() ?: 0,
                         licensePlate = doc.getString("licensePlate") ?: "",
@@ -332,7 +333,8 @@ class FirebaseStaffRepository : StaffRepository {
                         totalAmount = doc.getDouble("totalAmount") ?: 0.0,
                         amountPaid = doc.getDouble("amountPaid") ?: 0.0,
                         paymentId = doc.getString("paymentId"),
-                        paymentStatus = doc.getString("paymentStatus") ?: "UNPAID",
+                        paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
+                        paymentMethod = doc.getString("paymentMethod"),
                         status = doc.getString("status") ?: "ACTIVE",
                         entryMethod = doc.getString("entryMethod") ?: "CAMERA",
                         exitMethod = doc.getString("exitMethod"),
@@ -344,7 +346,7 @@ class FirebaseStaffRepository : StaffRepository {
                 }
             }
             
-            Log.d(TAG, "Pending exits fetched: ${sessions.size}")
+            Log.d(TAG, "✓ Pending exits fetched: ${sessions.size}")
             Result.success(sessions)
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching pending exits", e)
@@ -359,6 +361,8 @@ class FirebaseStaffRepository : StaffRepository {
         paymentMethod: String
     ): Result<Boolean> {
         return try {
+            Log.d(TAG, "confirmPayment called - sessionId: $sessionId, spotId: $spotId")
+            
             val now = Timestamp.now()
             val updates = hashMapOf<String, Any>(
                 "status" to "COMPLETED",
@@ -366,26 +370,42 @@ class FirebaseStaffRepository : StaffRepository {
                 "totalAmount" to totalAmount,
                 "paymentStatus" to "PAID",
                 "paymentMethod" to paymentMethod,
-                "paidAt" to now
+                "paidAt" to now,
+                "confirmedBy" to "STAFF"
             )
             
+            // Update session
             firestore.collection("parking_sessions")
                 .document(sessionId)
                 .update(updates)
                 .await()
             
+            Log.d(TAG, "✓ Session updated to COMPLETED")
+            
             // Update spot status
-            if (!spotId.isNullOrEmpty()) {
+            if (spotId.isNullOrEmpty()) {
+                Log.w(TAG, "⚠️ spotId is null/empty - cannot update spot")
+            } else {
+                Log.d(TAG, "Updating spot: $spotId → AVAILABLE")
+                
+                val spotUpdates = hashMapOf<String, Any>(
+                    "status" to "AVAILABLE",
+                    "currentSessionId" to "",  // Clear session reference
+                    "currentCarLabel" to "",   // Clear license plate
+                    "updatedAt" to now
+                )
+                
                 firestore.collection("parking_spots")
                     .document(spotId)
-                    .update("status", "AVAILABLE")
+                    .update(spotUpdates)
                     .await()
+                
+                Log.d(TAG, "✓ Spot $spotId marked AVAILABLE")
             }
             
-            Log.d(TAG, "Payment confirmed: $sessionId")
             Result.success(true)
         } catch (e: Exception) {
-            Log.e(TAG, "Error confirming payment", e)
+            Log.e(TAG, "❌ Error confirming payment", e)
             Result.failure(e)
         }
     }

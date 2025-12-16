@@ -53,6 +53,16 @@ interface DriverRepository {
         paymentMethod: String
     ): Result<Boolean>
     
+    /**
+     * Mark payment as pending staff confirmation
+     * Used for Cash, E-wallet, Card payments (manual flow)
+     */
+    suspend fun markPaymentPending(
+        sessionId: String,
+        totalAmount: Double,
+        paymentMethod: String
+    ): Result<Boolean>
+    
     // Vehicles
     suspend fun getUserVehicles(userId: String): Result<List<Vehicle>>
     suspend fun addVehicle(vehicle: Vehicle): Result<Vehicle>

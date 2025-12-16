@@ -19,7 +19,8 @@ data class ParkingSession(
     val totalAmount: Double = 0.0,
     val amountPaid: Double = 0.0,
     val paymentId: String? = null,
-    val paymentStatus: String = "UNPAID", // UNPAID, PAID, PARTIAL
+    val paymentStatus: String = "UNPAID", // UNPAID, PAID, PARTIAL, PENDING_CONFIRMATION
+    val paymentMethod: String? = null, // Cash, GCash, Maya, Card, AUTO_PAY
     val status: String = "ACTIVE", // ACTIVE, COMPLETED, PAID, CANCELLED
     val entryMethod: String = "CAMERA", // MANUAL, CAMERA, APP
     val exitMethod: String? = null,

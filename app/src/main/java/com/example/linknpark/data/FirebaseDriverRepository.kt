@@ -922,4 +922,31 @@ class FirebaseDriverRepository : DriverRepository {
             Result.failure(e)
         }
     }
+    
+    override suspend fun markPaymentPending(
+        sessionId: String,
+        totalAmount: Double,
+        paymentMethod: String
+    ): Result<Boolean> {
+        return try {
+            val updates = hashMapOf<String, Any>(
+                "status" to "ACTIVE",  // Keep ACTIVE so staff can see it
+                "paymentStatus" to "PENDING_CONFIRMATION",
+                "totalAmount" to totalAmount,
+                "paymentMethod" to paymentMethod,
+                "paymentInitiatedAt" to Timestamp.now()
+            )
+            
+            firestore.collection("parking_sessions")
+                .document(sessionId)
+                .update(updates)
+                .await()
+            
+            Log.d(TAG, "✓ Payment marked as pending: $sessionId")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error marking payment pending", e)
+            Result.failure(e)
+        }
+    }
 }

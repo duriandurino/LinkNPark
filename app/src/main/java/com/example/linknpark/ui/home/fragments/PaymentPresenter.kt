@@ -74,27 +74,29 @@ class PaymentPresenter(
         
         presenterScope.launch {
             try {
-                // Simulate payment processing (2 second delay)
-                delay(2000)
+                // Simulate payment processing (1.5 second delay)
+                delay(1500)
                 
-                // Complete session via repository
-                val result = repository.completeSession(
+                // Mark payment as pending staff confirmation
+                val result = repository.markPaymentPending(
                     sessionId = session.sessionId,
-                    spotId = session.spotId,
                     totalAmount = calculatedTotalAmount,
                     paymentMethod = paymentMethod
                 )
                 
                 if (result.isSuccess) {
                     view?.showLoading(false)
-                    view?.showPaymentSuccess("Payment of ₱${String.format("%.2f", calculatedTotalAmount)} successful via $paymentMethod!")
+                    view?.showPaymentSuccess(
+                        "Payment submitted (₱${String.format("%.2f", calculatedTotalAmount)}). " +
+                        "Please proceed to exit gate. Staff will confirm your payment."
+                    )
                     
                     // Navigate back after a short delay
-                    delay(1500)
+                    delay(2000)
                     view?.navigateBack()
                 } else {
                     view?.showLoading(false)
-                    view?.showPaymentError("Payment failed: ${result.exceptionOrNull()?.message}")
+                    view?.showPaymentError("Failed to submit payment: ${result.exceptionOrNull()?.message}")
                 }
                     
             } catch (e: Exception) {
