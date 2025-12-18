@@ -26,11 +26,11 @@
                 android:layout_marginBottom="32dp">
 
                 <ImageView
-                    android:layout_width="80dp"
-                    android:layout_height="80dp"
-                    android:src="@drawable/ic_car"
-                    android:tint="@color/white"
-                    android:layout_marginBottom="16dp" />
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:src="@drawable/linknparklogo"
+                    android:layout_marginBottom="16dp"
+                    android:scaleType="fitCenter" />
 
                 <TextView
                     android:layout_width="wrap_content"

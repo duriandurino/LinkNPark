@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">LinkNPark</string>
+    <string name="app_name">Link n Park</string>
     
     <!-- Login Screen -->
     <string name="login_title">Welcome Back</string>
