@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.linknpark.model.ParkingSpot
 import com.example.linknpark.model.ParkingSession
 import com.google.firebase.Timestamp
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
@@ -13,6 +14,7 @@ import java.util.Calendar
 class FirebaseStaffRepository : StaffRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
+    private val database = FirebaseDatabase.getInstance("https://linknpark-a9074-default-rtdb.asia-southeast1.firebasedatabase.app")
     private val TAG = "FirebaseStaffRepo"
     
     private var spotListener: ListenerRegistration? = null
@@ -67,6 +69,68 @@ class FirebaseStaffRepository : StaffRepository {
         spotListener?.remove()
         spotListener = null
         Log.d(TAG, "Removed spot listener")
+    }
+    
+    // ===== RTDB Exit Queue Observer =====
+    private var rtdbExitQueueListener: com.google.firebase.database.ValueEventListener? = null
+    
+    fun observeRtdbExitQueue(callback: (List<RtdbExitRequest>) -> Unit) {
+        Log.d(TAG, "Setting up RTDB exit queue listener")
+        
+        // Remove existing listener
+        removeRtdbExitQueueListener()
+        
+        val exitQueueRef = database.getReference("iot/exit_queue")
+        
+        rtdbExitQueueListener = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                val exitRequests = mutableListOf<RtdbExitRequest>()
+                
+                for (child in snapshot.children) {
+                    try {
+                        val sessionId = child.key ?: continue
+                        val licensePlate = child.child("license_plate").getValue(String::class.java) ?: ""
+                        val spotCode = child.child("spot_code").getValue(String::class.java)
+                        val totalAmount = child.child("total_amount").getValue(Double::class.java) ?: 0.0
+                        val durationMinutes = child.child("duration_minutes").getValue(Double::class.java) ?: 0.0
+                        val timestamp = child.child("timestamp").getValue(Long::class.java) ?: 0L
+                        val paymentConfirmed = child.child("payment_confirmed").getValue(Boolean::class.java) ?: false
+                        
+                        // Only include requests that are NOT yet confirmed
+                        if (!paymentConfirmed) {
+                            exitRequests.add(RtdbExitRequest(
+                                sessionId = sessionId,
+                                licensePlate = licensePlate,
+                                spotCode = spotCode,
+                                totalAmount = totalAmount,
+                                durationMinutes = durationMinutes,
+                                timestamp = timestamp,
+                                paymentConfirmed = paymentConfirmed
+                            ))
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing exit request: ${child.key}", e)
+                    }
+                }
+                
+                Log.d(TAG, "RTDB exit queue update: ${exitRequests.size} pending requests")
+                callback(exitRequests)
+            }
+            
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                Log.e(TAG, "RTDB exit queue listener cancelled: ${error.message}")
+            }
+        }
+        
+        exitQueueRef.addValueEventListener(rtdbExitQueueListener!!)
+    }
+    
+    fun removeRtdbExitQueueListener() {
+        rtdbExitQueueListener?.let {
+            database.getReference("iot/exit_queue").removeEventListener(it)
+        }
+        rtdbExitQueueListener = null
+        Log.d(TAG, "Removed RTDB exit queue listener")
     }
 
     override suspend fun getParkingStats(lotId: String): Result<ParkingStats> {
@@ -374,7 +438,7 @@ class FirebaseStaffRepository : StaffRepository {
                 "confirmedBy" to "STAFF"
             )
             
-            // Update session
+            // Update session in Firestore
             firestore.collection("parking_sessions")
                 .document(sessionId)
                 .update(updates)
@@ -382,7 +446,7 @@ class FirebaseStaffRepository : StaffRepository {
             
             Log.d(TAG, "✓ Session updated to COMPLETED")
             
-            // Update spot status
+            // Update spot status in Firestore
             if (spotId.isNullOrEmpty()) {
                 Log.w(TAG, "⚠️ spotId is null/empty - cannot update spot")
             } else {
@@ -401,6 +465,25 @@ class FirebaseStaffRepository : StaffRepository {
                     .await()
                 
                 Log.d(TAG, "✓ Spot $spotId marked AVAILABLE")
+            }
+            
+            // ===== NEW: Write payment confirmation to RTDB =====
+            // This triggers the Python backend to open the exit gate
+            try {
+                val rtdbUpdates = hashMapOf<String, Any>(
+                    "payment_confirmed" to true,
+                    "confirmed_at" to System.currentTimeMillis(),
+                    "confirmed_by" to "STAFF"
+                )
+                
+                database.getReference("iot/exit_queue/$sessionId")
+                    .updateChildren(rtdbUpdates)
+                    .await()
+                
+                Log.d(TAG, "✓ RTDB payment_confirmed written for $sessionId")
+            } catch (rtdbError: Exception) {
+                // Don't fail the whole operation if RTDB fails
+                Log.e(TAG, "⚠️ RTDB write failed (non-fatal): ${rtdbError.message}")
             }
             
             Result.success(true)

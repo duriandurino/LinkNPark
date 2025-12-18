@@ -75,3 +75,14 @@ data class ActivityLog(
     val time: String,
     val isEntry: Boolean = true
 )
+
+// RTDB Exit Request from IoT system
+data class RtdbExitRequest(
+    val sessionId: String,
+    val licensePlate: String,
+    val spotCode: String?,
+    val totalAmount: Double,
+    val durationMinutes: Double,
+    val timestamp: Long,
+    val paymentConfirmed: Boolean
+)
