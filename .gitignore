@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase credentials - DO NOT COMMIT
+linknpark-a9074-firebase-adminsdk-fbsvc-63c039119f.json
+*-firebase-adminsdk-*.json
+backendPython\Multi-Camera-Live-Object-Tracking\traffic_counting\model_data\yolo4.h5
