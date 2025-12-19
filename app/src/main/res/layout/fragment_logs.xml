@@ -50,7 +50,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:icon="@android:drawable/ic_menu_upload"
-                app:iconTint="@color/primary_blue" />
+                app:iconTint="@color/white" />
         </LinearLayout>
 
         <!-- Filters -->
