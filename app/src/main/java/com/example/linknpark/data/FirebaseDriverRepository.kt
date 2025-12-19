@@ -595,7 +595,7 @@ class FirebaseDriverRepository : DriverRepository {
 
             val snapshot = firestore.collection("parking_sessions")
                 .whereEqualTo("user_id", userId)
-                .whereEqualTo("status", "ACTIVE")
+                .whereIn("status", listOf("PENDING", "ACTIVE"))
                 .get()
                 .await()
 
@@ -619,7 +619,7 @@ class FirebaseDriverRepository : DriverRepository {
         
         sessionListener = firestore.collection("parking_sessions")
             .whereEqualTo("user_id", userId)
-            .whereEqualTo("status", "ACTIVE")
+            .whereIn("status", listOf("PENDING", "ACTIVE"))
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e(TAG, "Error listening to sessions", error)
