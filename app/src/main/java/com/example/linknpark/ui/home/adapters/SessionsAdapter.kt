@@ -57,7 +57,8 @@ class SessionsAdapter(
             }
             
             val dateFormat = SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault())
-            val entryTime = session.enteredAt?.toDate()
+            // Use startTime which prefers parkedAt over enteredAt
+            val entryTime = session.startTime.toDate()
             
             if (entryTime != null) {
                 tvEntryTime.text = "Entered: ${dateFormat.format(entryTime)}"
@@ -76,7 +77,7 @@ class SessionsAdapter(
                 val hourlyRate = session.hourlyRate
                 val hoursParked = durationMs / (1000.0 * 60 * 60)
                 val estimatedFee = hoursParked * hourlyRate
-                tvAmount.text = "Est. Fee: PHP ${String.format("%.2f", estimatedFee)}"
+                                tvAmount.text = "Est. Fee: ₱${String.format("%.2f", estimatedFee)}"
             } else {
                 tvEntryTime.text = "Entry time not available"
                 tvRunningTime.text = "⏱ --"

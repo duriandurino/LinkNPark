@@ -641,6 +641,69 @@ class FirebaseDriverRepository : DriverRepository {
         sessionListener = null
         Log.d(TAG, "Removed session listener")
     }
+    
+    // ===== Notifications Observer =====
+    private var notificationListener: ListenerRegistration? = null
+    
+    fun observeUserNotifications(userId: String, callback: (List<com.example.linknpark.model.Notification>) -> Unit) {
+        Log.d(TAG, "Setting up notification listener for user: $userId")
+        
+        notificationListener?.remove()
+        
+        notificationListener = firestore.collection("notifications")
+            .whereEqualTo("recipient_type", "driver")
+            .whereEqualTo("recipient_id", userId)
+            .whereEqualTo("read", false)
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .limit(50)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error listening to notifications", error)
+                    callback(emptyList())
+                    return@addSnapshotListener
+                }
+                
+                val notifications = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        com.example.linknpark.model.Notification(
+                            id = doc.id,
+                            type = doc.getString("type") ?: "",
+                            title = doc.getString("title") ?: "",
+                            message = doc.getString("message") ?: "",
+                            data = doc.get("data") as? Map<String, Any> ?: emptyMap(),
+                            timestamp = doc.getTimestamp("timestamp"),
+                            read = doc.getBoolean("read") ?: false,
+                            recipientType = doc.getString("recipient_type") ?: "",
+                            recipientId = doc.getString("recipient_id") ?: ""
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing notification: ${doc.id}", e)
+                        null
+                    }
+                } ?: emptyList()
+                
+                Log.d(TAG, "Notification update: ${notifications.size} unread notifications")
+                callback(notifications)
+            }
+    }
+    
+    fun removeNotificationListener() {
+        notificationListener?.remove()
+        notificationListener = null
+        Log.d(TAG, "Removed notification listener")
+    }
+    
+    suspend fun markNotificationRead(notificationId: String): Result<Unit> {
+        return try {
+            firestore.collection("notifications").document(notificationId)
+                .update("read", true)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error marking notification read", e)
+            Result.failure(e)
+        }
+    }
 
     private fun parseParkingSession(doc: com.google.firebase.firestore.DocumentSnapshot): ParkingSession? {
         return try {
@@ -654,6 +717,7 @@ class FirebaseDriverRepository : DriverRepository {
                 carLabel = doc.getString("car_label") ?: "",
                 vehicleType = doc.getString("vehicle_type") ?: "STANDARD",
                 enteredAt = doc.getTimestamp("entered_at"),
+                parkedAt = doc.getTimestamp("parked_at"),
                 exitedAt = doc.getTimestamp("exited_at"),
                 durationMinutes = doc.getLong("duration_minutes")?.toInt() ?: 0,
                 hourlyRate = doc.getDouble("hourly_rate") ?: 0.0,

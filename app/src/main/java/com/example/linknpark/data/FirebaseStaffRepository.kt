@@ -132,6 +132,73 @@ class FirebaseStaffRepository : StaffRepository {
         rtdbExitQueueListener = null
         Log.d(TAG, "Removed RTDB exit queue listener")
     }
+    
+    // ===== Notifications Observer =====
+    private var notificationListener: ListenerRegistration? = null
+    
+    fun observeStaffNotifications(userId: String, callback: (List<com.example.linknpark.model.Notification>) -> Unit) {
+        Log.d(TAG, "Setting up notification listener for staff")
+        
+        notificationListener?.remove()
+        
+        // Staff sees notifications for "all" or specifically for them
+        notificationListener = firestore.collection("notifications")
+            .whereEqualTo("recipient_type", "staff")
+            .whereEqualTo("read", false)
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .limit(50)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error listening to notifications", error)
+                    callback(emptyList())
+                    return@addSnapshotListener
+                }
+                
+                val notifications = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        val recipientId = doc.getString("recipient_id") ?: ""
+                        // Only include if recipient is "all" or matches userId
+                        if (recipientId == "all" || recipientId == userId) {
+                            com.example.linknpark.model.Notification(
+                                id = doc.id,
+                                type = doc.getString("type") ?: "",
+                                title = doc.getString("title") ?: "",
+                                message = doc.getString("message") ?: "",
+                                data = doc.get("data") as? Map<String, Any> ?: emptyMap(),
+                                timestamp = doc.getTimestamp("timestamp"),
+                                read = doc.getBoolean("read") ?: false,
+                                recipientType = doc.getString("recipient_type") ?: "",
+                                recipientId = recipientId
+                            )
+                        } else null
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing notification: ${doc.id}", e)
+                        null
+                    }
+                } ?: emptyList()
+                
+                Log.d(TAG, "Notification update: ${notifications.size} unread notifications")
+                callback(notifications)
+            }
+    }
+    
+    fun removeNotificationListener() {
+        notificationListener?.remove()
+        notificationListener = null
+        Log.d(TAG, "Removed notification listener")
+    }
+    
+    suspend fun markNotificationRead(notificationId: String): Result<Unit> {
+        return try {
+            firestore.collection("notifications").document(notificationId)
+                .update("read", true)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error marking notification read", e)
+            Result.failure(e)
+        }
+    }
 
     override suspend fun getParkingStats(lotId: String): Result<ParkingStats> {
         return try {
@@ -373,8 +440,8 @@ class FirebaseStaffRepository : StaffRepository {
         return try {
             val snapshot = firestore.collection("parking_sessions")
                 .whereEqualTo("status", "ACTIVE")
-                .whereIn("paymentStatus", listOf("PENDING", "PENDING_CONFIRMATION"))  // ✅ FIXED
-                .orderBy("entryTime", Query.Direction.ASCENDING)
+                .whereIn("payment_status", listOf("PENDING", "PENDING_CONFIRMATION"))
+                .orderBy("entered_at", Query.Direction.ASCENDING)
                 .get()
                 .await()
             
@@ -382,27 +449,28 @@ class FirebaseStaffRepository : StaffRepository {
                 try {
                     ParkingSession(
                         sessionId = doc.id,
-                        userId = doc.getString("userId") ?: "",
-                        lotId = doc.getString("lotId") ?: "",
-                        spotId = doc.getString("spotId"),  // ✅ Make sure this is populated
-                        spotCode = doc.getString("spotCode") ?: "",
-                        spotNumber = doc.getLong("spotNumber")?.toInt() ?: 0,
-                        licensePlate = doc.getString("licensePlate") ?: "",
-                        carLabel = doc.getString("carLabel") ?: "",
-                        vehicleType = doc.getString("vehicleType") ?: "STANDARD",
-                        enteredAt = doc.getTimestamp("entryTime"),
-                        exitedAt = doc.getTimestamp("exitTime"),
-                        durationMinutes = doc.getLong("durationMinutes")?.toInt() ?: 0,
-                        hourlyRate = doc.getDouble("hourlyRate") ?: 0.0,
-                        totalAmount = doc.getDouble("totalAmount") ?: 0.0,
-                        amountPaid = doc.getDouble("amountPaid") ?: 0.0,
-                        paymentId = doc.getString("paymentId"),
-                        paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
-                        paymentMethod = doc.getString("paymentMethod"),
+                        userId = doc.getString("user_id") ?: "",
+                        lotId = doc.getString("lot_id") ?: "",
+                        spotId = doc.getString("spot_id"),
+                        spotCode = doc.getString("spot_code") ?: "",
+                        spotNumber = doc.getLong("spot_number")?.toInt() ?: 0,
+                        licensePlate = doc.getString("license_plate") ?: "",
+                        carLabel = doc.getString("car_label") ?: "",
+                        vehicleType = doc.getString("vehicle_type") ?: "STANDARD",
+                        enteredAt = doc.getTimestamp("entered_at"),
+                        parkedAt = doc.getTimestamp("parked_at"),
+                        exitedAt = doc.getTimestamp("exited_at"),
+                        durationMinutes = doc.getLong("duration_minutes")?.toInt() ?: 0,
+                        hourlyRate = doc.getDouble("hourly_rate") ?: 0.0,
+                        totalAmount = doc.getDouble("total_amount") ?: 0.0,
+                        amountPaid = doc.getDouble("amount_paid") ?: 0.0,
+                        paymentId = doc.getString("payment_id"),
+                        paymentStatus = doc.getString("payment_status") ?: "PENDING",
+                        paymentMethod = doc.getString("payment_method"),
                         status = doc.getString("status") ?: "ACTIVE",
-                        entryMethod = doc.getString("entryMethod") ?: "CAMERA",
-                        exitMethod = doc.getString("exitMethod"),
-                        createdAt = doc.getTimestamp("createdAt")
+                        entryMethod = doc.getString("entry_method") ?: "CAMERA",
+                        exitMethod = doc.getString("exit_method"),
+                        createdAt = doc.getTimestamp("created_at")
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing session: ${doc.id}", e)

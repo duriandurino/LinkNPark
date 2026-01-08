@@ -137,18 +137,18 @@ fun QuerySnapshot.toParkingSessions(): List<ParkingSession> =
  * Convert DocumentSnapshot to ParkingLot model.
  */
 fun DocumentSnapshot.toParkingLot(): ParkingLot? = try {
+    val location = get("location") as? com.google.firebase.firestore.GeoPoint 
+        ?: com.google.firebase.firestore.GeoPoint(0.0, 0.0)
+    
     ParkingLot(
         lotId = id,
         name = getString("name") ?: "",
+        location = location,
         address = getString("address") ?: "",
         totalSpots = getLong("total_spots")?.toInt() ?: 0,
         availableSpots = getLong("available_spots")?.toInt() ?: 0,
-        occupiedSpots = getLong("occupied_spots")?.toInt() ?: 0,
-        hourlyRate = getDouble("hourly_rate") ?: 0.0,
-        currency = getString("currency") ?: "PHP",
-        status = getString("status") ?: "ACTIVE",
-        operatingHoursOpen = (get("operating_hours") as? Map<*, *>)?.get("open") as? String ?: "06:00",
-        operatingHoursClose = (get("operating_hours") as? Map<*, *>)?.get("close") as? String ?: "22:00"
+        pricePerHour = getDouble("hourly_rate") ?: 0.0,  // Field is pricePerHour in model
+        status = getString("status") ?: "ACTIVE"
     )
 } catch (e: Exception) {
     Log.e(TAG, "Error parsing ParkingLot from document $id", e)
