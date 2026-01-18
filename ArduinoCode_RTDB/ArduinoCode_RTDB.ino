@@ -1,366 +1,503 @@
 /*
- * LinkNPark Gate Control with Firebase RTDB
- * ESP32 Dev Module + Ultrasonic Sensor + 4 Servo Motors
+ * LinkNPark Gate Control with FirebaseClient (New Library)
+ * ESP32 + Ultrasonic + 4 Servos
  * 
  * SERVO LAYOUT:
- * - Servo 1 (Axis): Rotates camera for front/back plate scanning
- * - Servo 2 (Barrier 1): First entry barrier (opens/closes)
- * - Servo 3 (Barrier 2): Second entry barrier (after verification)
- * - Servo 4 (Exit Barrier): Exit gate barrier
+ * 1. AXIS - Camera rotation (for plate scanning)
+ * 2. BARRIER1 - First entry barrier
+ * 3. BARRIER2 - Second entry barrier (after verification)
+ * 4. EXIT - Exit gate barrier
  * 
- * Communicates with Python backend via Firebase Realtime Database:
- * - Writes ultrasonic triggers to RTDB
- * - Reads servo commands from RTDB
+ * Using mobizt/FirebaseClient (new async library)
  */
 
 #include <ESP32Servo.h>
 #include <WiFi.h>
-#include <FirebaseESP32.h>
 
-// ===== WiFi Configuration =====
-#define WIFI_SSID "realme 10"
-#define WIFI_PASSWORD "123456789"
+// New FirebaseClient library
+#define ENABLE_DATABASE
+#define ENABLE_LEGACY_TOKEN
+#include <FirebaseClient.h>
+#include <WiFiClientSecure.h>
 
-// ===== Firebase Configuration =====
+// ===== WiFi =====
+#define WIFI_SSID "abcdefgh"
+#define WIFI_PASSWORD "12345678"
+
+// ===== Firebase =====
 #define DATABASE_URL "https://linknpark-a9074-default-rtdb.asia-southeast1.firebasedatabase.app"
-#define DATABASE_SECRET ""  // Optional: Legacy database secret
+#define DATABASE_SECRET "tYFRceH1SnKZ5vlZaerAzwsUyFg4YKagrtGMeOMA"
 
-// ===== Ultrasonic Sensor Pins =====
+// ===== Pins =====
 #define TRIG_PIN 5
 #define ECHO_PIN 18
 
-// ===== Servo Pins (4 Servos) =====
-#define SERVO_AXIS_PIN 13       // Servo 1: Camera axis rotation
-#define SERVO_BARRIER1_PIN 14   // Servo 2: First entry barrier
-#define SERVO_BARRIER2_PIN 15   // Servo 3: Second entry barrier (after verification)
-#define SERVO_EXIT_PIN 27       // Servo 4: Exit gate barrier
+// 4 Servo Pins
+#define SERVO_AXIS_PIN 13      // Servo 1: Camera rotation
+#define SERVO_BARRIER1_PIN 14  // Servo 2: First entry barrier
+#define SERVO_BARRIER2_PIN 25  // Servo 3: Second entry barrier
+#define SERVO_EXIT_PIN 27      // Servo 4: Exit barrier
 
-Servo axisServo;      // Camera rotation
-Servo barrier1Servo;  // First entry barrier
-Servo barrier2Servo;  // Second entry barrier
-Servo exitServo;      // Exit barrier
-
-// ===== LED Pins =====
+// LEDs
 #define RED_LED 4
 #define YELLOW_LED 16
 #define GREEN_LED 17
 
 // ===== Servo Positions =====
 #define AXIS_FRONT 0
-#define AXIS_BACK 180
+#define AXIS_BACK 210     // Rotated 15 degrees more for better angle
 #define BARRIER_CLOSED 180
 #define BARRIER_OPEN 90
 
+// Barrier 1 is mounted in opposite direction, so angles are inverted
+#define BARRIER1_CLOSED 0
+#define BARRIER1_OPEN 90
+
 // ===== RTDB Paths =====
-#define PATH_ENTRY_TRIGGER "/iot/entry_trigger"
-#define PATH_ENTRY_STATUS "/iot/entry_status"
-#define PATH_SERVO_COMMANDS "/iot/servo_commands"
-#define PATH_EXIT_GATE "/iot/exit_gate"
+#define PATH_ENTRY_TRIGGER "iot/entry_trigger"
+#define PATH_GATE_COMMAND "iot/gate_command"
+#define PATH_ENTRY_STATUS "iot/entry_status"
+
+// ===== Objects =====
+Servo axisServo;
+Servo barrier1Servo;
+Servo barrier2Servo;
+Servo exitServo;
+
+// ===== Firebase Objects (New Library) =====
+WiFiClientSecure ssl_client;
+WiFiClientSecure stream_ssl_client;
+
+using AsyncClient = AsyncClientClass;
+AsyncClient aClient(ssl_client);
+AsyncClient streamClient(stream_ssl_client);
+
+LegacyToken dbSecret(DATABASE_SECRET);
+FirebaseApp app;
+RealtimeDatabase Database;
 
 // ===== Variables =====
-FirebaseData firebaseData;
-FirebaseData streamData;
-FirebaseData exitStreamData;
-FirebaseAuth auth;
-FirebaseConfig config;
-
-int currentAxisPos = AXIS_FRONT;
-int currentBarrier1Pos = BARRIER_CLOSED;
-int currentBarrier2Pos = BARRIER_CLOSED;
-int currentExitPos = BARRIER_CLOSED;
-int carCount = 0;
-bool wifiConnected = false;
 bool firebaseConnected = false;
+bool streamStarted = false;
 unsigned long lastTriggerTime = 0;
-const unsigned long triggerCooldown = 3000;  // 3 second cooldown
 
-// ===== Function Prototypes =====
-int getDistance();
+// Track current states to prevent redundant movements
+String currentAxisState = "unknown";
+String currentBarrier1State = "unknown";
+String currentBarrier2State = "unknown";
+String currentExitState = "unknown";
+
+// ===== Prototypes =====
 void connectWiFi();
 void initFirebase();
-void streamCallback(StreamData data);
-void exitStreamCallback(StreamData data);
-void streamTimeoutCallback(bool timeout);
+void processStream(AsyncResult &aResult);
+void processResult(AsyncResult &aResult);
 void sendTrigger(int distance);
-void moveServo(Servo& servo, int& currentPos, int targetPos, int stepDelay = 10);
-void setStatusLED(char status);  // 'R'=Red, 'Y'=Yellow, 'G'=Green
+void moveServo(Servo& servo, int pin, int from, int to, int delayMs);
+void setLED(char c);
+int getDistance();
+void reportStatus(String state, String message = "");
+void resetGateCommand();
+void processAction(const String& action);
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("LinkNPark Gate - Initializing...");
-
-  // --- Ultrasonic Sensor ---
+  Serial.println("LinkNPark Gate - FirebaseClient Library");
+  
+  // Display initial heap for monitoring
+  Serial.printf("💾 Initial free heap: %d bytes\n", ESP.getFreeHeap());
+  
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
-
-  // --- LEDs ---
   pinMode(RED_LED, OUTPUT);
   pinMode(YELLOW_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
-  setStatusLED('Y');  // Yellow during setup
-
-  // --- Servos (4 total) ---
-  axisServo.attach(SERVO_AXIS_PIN);
-  barrier1Servo.attach(SERVO_BARRIER1_PIN);
-  barrier2Servo.attach(SERVO_BARRIER2_PIN);
-  exitServo.attach(SERVO_EXIT_PIN);
+  setLED('Y');
   
-  // Initialize all servos to closed/front position
-  axisServo.write(AXIS_FRONT);
-  barrier1Servo.write(BARRIER_CLOSED);
-  barrier2Servo.write(BARRIER_CLOSED);
-  exitServo.write(BARRIER_CLOSED);
-  
-  Serial.println("Servos initialized: Axis=" + String(AXIS_FRONT) + 
-                 ", B1=" + String(BARRIER_CLOSED) +
-                 ", B2=" + String(BARRIER_CLOSED) +
-                 ", Exit=" + String(BARRIER_CLOSED));
+  // Set initial states
+  currentAxisState = "FRONT";
+  currentBarrier1State = "CLOSED";
+  currentBarrier2State = "CLOSED";
+  currentExitState = "CLOSED";
 
-  // --- Connect WiFi ---
-  Serial.println("Connecting to WiFi...");
+  // Init all servos to default positions
+  axisServo.attach(SERVO_AXIS_PIN); axisServo.write(AXIS_FRONT); delay(200); axisServo.detach();
+  barrier1Servo.attach(SERVO_BARRIER1_PIN); barrier1Servo.write(BARRIER1_CLOSED); delay(200); barrier1Servo.detach();
+  barrier2Servo.attach(SERVO_BARRIER2_PIN); barrier2Servo.write(BARRIER_CLOSED); delay(200); barrier2Servo.detach();
+  exitServo.attach(SERVO_EXIT_PIN); exitServo.write(BARRIER_CLOSED); delay(200); exitServo.detach();
+  
   connectWiFi();
-
-  if (wifiConnected) {
-    // --- Initialize Firebase ---
-    Serial.println("Connecting to Firebase...");
+  if (WiFi.status() == WL_CONNECTED) {
     initFirebase();
   }
-
-  if (firebaseConnected) {
-    Serial.println("✅ Ready! Waiting for vehicles...");
-    setStatusLED('R');  // Red = barrier closed
-  } else {
-    Serial.println("⚠️ Offline Mode - No Firebase connection");
-    setStatusLED('R');
-  }
+  
+  setLED('R');
+  Serial.println("✅ Ready!");
 }
 
 void loop() {
-  // Read ultrasonic sensor
+  // CRITICAL: Must call app.loop() to process async tasks
+  app.loop();
+  
   int distance = getDistance();
   
-  // Check for vehicle trigger (distance < 5cm, with cooldown)
-  unsigned long now = millis();
-  if (distance > 0 && distance < 5 && (now - lastTriggerTime > triggerCooldown)) {
-    lastTriggerTime = now;
-    
-    Serial.println("🚗 Vehicle detected!");
-    setStatusLED('Y');  // Yellow = processing
-    
-    if (firebaseConnected) {
-      // Send trigger to RTDB
-      sendTrigger(distance);
-    } else {
-      // Offline mode - just wait
-      delay(2000);
-      setStatusLED('R');
+  // Periodic debug output (every 3 seconds)
+  static unsigned long lastDebug = 0;
+  if (millis() - lastDebug > 3000) {
+    if (distance > 0) {
+      String fbStatus = firebaseConnected ? "🟢 FB:OK" : "🔴 FB:FAIL";
+      String streamStatus = streamStarted ? "📡 Stream:ON" : "📡 Stream:OFF";
+      Serial.printf("📏 Distance: %d cm | %s | %s | Heap: %d\n", 
+                    distance, fbStatus.c_str(), streamStatus.c_str(), ESP.getFreeHeap());
     }
+    lastDebug = millis();
   }
   
-  // Process Firebase stream data
-  if (firebaseConnected && Firebase.ready()) {
-    if (!Firebase.readStream(streamData)) {
-      Serial.println("Stream read failed: " + streamData.errorReason());
-    }
+  // Trigger on car detection (only if Firebase is ready)
+  if (app.ready() && distance > 0 && distance < 20 && (millis() - lastTriggerTime > 20000)) {
+    lastTriggerTime = millis();
+    Serial.println("🚗 CAR DETECTED at " + String(distance) + "cm!");
+    setLED('Y');
+    sendTrigger(distance);
   }
   
-  delay(100);  // Small delay for stability
+  delay(100);
 }
 
-// ===== WiFi Connection =====
 void connectWiFi() {
+  Serial.print("📶 Connecting to WiFi");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
-  
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+  for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
     delay(500);
     Serial.print(".");
-    attempts++;
   }
-  
   if (WiFi.status() == WL_CONNECTED) {
-    wifiConnected = true;
-    Serial.println("\n✅ WiFi connected!");
+    Serial.println(" ✅ Connected!");
     Serial.println("IP: " + WiFi.localIP().toString());
   } else {
-    wifiConnected = false;
-    Serial.println("\n❌ WiFi connection failed!");
+    Serial.println(" ❌ Failed!");
   }
 }
 
-// ===== Firebase Initialization =====
 void initFirebase() {
-  config.database_url = DATABASE_URL;
+  Serial.println("🔥 Initializing Firebase (New Library)...");
   
-  if (strlen(DATABASE_SECRET) > 0) {
-    config.signer.tokens.legacy_token = DATABASE_SECRET;
-  }
+  // Configure SSL clients (insecure for simplicity - production should use certs)
+  ssl_client.setInsecure();
+  stream_ssl_client.setInsecure();
   
-  Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
+  Serial.println("Using legacy token (database secret) authentication...");
   
-  // Set up stream for servo commands (entry gate)
-  if (Firebase.beginStream(streamData, PATH_SERVO_COMMANDS)) {
-    Serial.println("✅ Entry servo stream started");
-    Firebase.setStreamCallback(streamData, streamCallback, streamTimeoutCallback);
-    firebaseConnected = true;
-  } else {
-    Serial.println("❌ Entry servo stream failed: " + streamData.errorReason());
-    firebaseConnected = false;
-  }
+  // Initialize app with legacy token
+  initializeApp(aClient, app, getAuth(dbSecret), processResult, "authTask");
   
-  // Set up stream for exit gate commands
-  if (Firebase.beginStream(exitStreamData, PATH_EXIT_GATE)) {
-    Serial.println("✅ Exit gate stream started");
-    Firebase.setStreamCallback(exitStreamData, exitStreamCallback, streamTimeoutCallback);
-  } else {
-    Serial.println("⚠️ Exit gate stream failed: " + exitStreamData.errorReason());
-  }
+  // Get Database reference
+  app.getApp<RealtimeDatabase>(Database);
+  
+  // Set database URL
+  Database.url(DATABASE_URL);
+  
+  firebaseConnected = true;
+  Serial.println("✅ Firebase initialized successfully!");
+  Serial.println("Database: " + String(DATABASE_URL));
+  
+  // Start stream on gate_command path
+  startCommandStream();
+  
+  // Reset gate command to IDLE
+  resetGateCommand();
 }
 
-// ===== Firebase Stream Callback (Entry Gate) =====
-void streamCallback(StreamData data) {
-  Serial.println("📡 Entry servo command received!");
-  Serial.println("Path: " + data.dataPath());
+void startCommandStream() {
+  Serial.println("🎯 Starting command stream on: " + String(PATH_GATE_COMMAND));
   
-  if (data.dataType() == "json") {
-    FirebaseJson &json = data.jsonObject();
-    FirebaseJsonData jsonData;
+  // Configure SSE filters
+  streamClient.setSSEFilters("get,put,patch,keep-alive,cancel,auth_revoked");
+  
+  // Start stream with SSE mode (true = HTTP streaming)
+  Database.get(streamClient, PATH_GATE_COMMAND, processStream, true, "commandStream");
+  
+  streamStarted = true;
+  Serial.println("✅ Command stream started!");
+}
+
+void processStream(AsyncResult &aResult) {
+  // Monitor heap during stream processing
+  uint32_t freeHeap = ESP.getFreeHeap();
+  if (freeHeap < 40000) {
+    Serial.printf("⚠️ Low heap during stream: %d bytes\n", freeHeap);
+  }
+  
+  if (!aResult.isResult())
+    return;
+  
+  if (aResult.isError()) {
+    Serial.printf("❌ Stream error: %s, code: %d\n", 
+                  aResult.error().message().c_str(), aResult.error().code());
+    return;
+  }
+  
+  if (aResult.available()) {
+    RealtimeDatabaseResult &stream = aResult.to<RealtimeDatabaseResult>();
     
-    // Read axis command (camera rotation)
-    if (json.get(jsonData, "axis")) {
-      int axisTarget = jsonData.intValue;
-      Serial.println("Axis target: " + String(axisTarget));
+    if (stream.isStream()) {
+      Serial.println("\n🔔 === STREAM EVENT RECEIVED ===");
+      Serial.printf("Event: %s\n", stream.event().c_str());
+      Serial.printf("Path: %s\n", stream.dataPath().c_str());
+      Serial.printf("Data: %s\n", stream.to<const char *>());
       
-      if (axisTarget != currentAxisPos) {
-        moveServo(axisServo, currentAxisPos, axisTarget, 10);
-        
-        if (axisTarget == AXIS_BACK) {
-          Firebase.setString(firebaseData, String(PATH_ENTRY_STATUS) + "/state", "rotated");
-          Serial.println("Camera rotated - scanning back plate...");
+      // Parse JSON data to get action
+      String jsonStr = stream.to<String>();
+      
+      // Simple JSON parsing for action field
+      int actionStart = jsonStr.indexOf("\"action\":\"");
+      if (actionStart >= 0) {
+        actionStart += 10; // Length of "action":"
+        int actionEnd = jsonStr.indexOf("\"", actionStart);
+        if (actionEnd > actionStart) {
+          String action = jsonStr.substring(actionStart, actionEnd);
+          
+          if (action == "IDLE") {
+            Serial.println("ℹ️ IDLE command, ignoring");
+            return;
+          }
+          
+          Serial.println("✅ Processing action: " + action);
+          processAction(action);
         }
       }
     }
-    
-    // Read barrier1 command (first entry barrier)
-    if (json.get(jsonData, "barrier")) {
-      int barrierTarget = jsonData.intValue;
-      Serial.println("Barrier1 target: " + String(barrierTarget));
-      
-      if (barrierTarget != currentBarrier1Pos) {
-        moveServo(barrier1Servo, currentBarrier1Pos, barrierTarget, 15);
-        
-        if (barrierTarget == BARRIER_OPEN) {
-          setStatusLED('G');  // Green = open
-          carCount++;
-          Serial.println("Entry OPEN - Cars: " + String(carCount));
-        } else {
-          setStatusLED('R');  // Red = closed
-          Serial.println("Entry CLOSED - Ready");
-        }
-      }
-    }
-    
-    // Read barrier2 command (second entry barrier)
-    if (json.get(jsonData, "barrier2")) {
-      int barrier2Target = jsonData.intValue;
-      Serial.println("Barrier2 target: " + String(barrier2Target));
-      
-      if (barrier2Target != currentBarrier2Pos) {
-        moveServo(barrier2Servo, currentBarrier2Pos, barrier2Target, 15);
-        Serial.println("Barrier 2: " + String(barrier2Target == BARRIER_OPEN ? "OPEN" : "CLOSED"));
-      }
-    }
   }
 }
 
-// ===== Firebase Stream Callback (Exit Gate) =====
-void exitStreamCallback(StreamData data) {
-  Serial.println("📡 Exit gate command received!");
+void processResult(AsyncResult &aResult) {
+  if (!aResult.isResult())
+    return;
+    
+  if (aResult.isEvent()) {
+    Serial.printf("🔔 Event: %s, msg: %s\n", aResult.uid().c_str(), aResult.eventLog().message().c_str());
+  }
   
-  if (data.dataType() == "json") {
-    FirebaseJson &json = data.jsonObject();
-    FirebaseJsonData jsonData;
-    
-    if (json.get(jsonData, "action")) {
-      String action = jsonData.stringValue;
-      Serial.println("Exit gate action: " + action);
-      
-      if (action == "OPEN" && currentExitPos != BARRIER_OPEN) {
-        moveServo(exitServo, currentExitPos, BARRIER_OPEN, 15);
-        Serial.println("EXIT GATE OPEN - Drive safely!");
-        
-        // Auto-close after 5 seconds
-        delay(5000);
-        moveServo(exitServo, currentExitPos, BARRIER_CLOSED, 15);
-        Serial.println("Exit gate closed");
-      } else if (action == "CLOSE" && currentExitPos != BARRIER_CLOSED) {
-        moveServo(exitServo, currentExitPos, BARRIER_CLOSED, 15);
-        Serial.println("Exit gate closed");
-      }
+  if (aResult.isError()) {
+    Serial.printf("❌ Error: %s, msg: %s, code: %d\n", 
+                  aResult.uid().c_str(), aResult.error().message().c_str(), aResult.error().code());
+  }
+  
+  if (aResult.available()) {
+    Serial.printf("✅ Task: %s, result: %s\n", aResult.uid().c_str(), aResult.c_str());
+  }
+}
+
+void processAction(const String& action) {
+  // ===== COMPOSITE COMMANDS =====
+  if (action == "ENTRY_SEQUENCE") {
+    executeEntrySequence();
+    return;
+  }
+  else if (action == "ROTATE_BACK") {
+    executeRotateBack();
+    return;
+  }
+  else if (action == "ROTATE_FRONT") {
+    executeRotateFront();
+    return;
+  }
+  
+  // ===== ATOMIC COMMANDS =====
+  if (action == "OPEN_BARRIER1") {
+    Serial.println("🔓 Barrier1 command received. Current state: " + currentBarrier1State);
+    if (currentBarrier1State != "OPEN") {
+      moveServo(barrier1Servo, SERVO_BARRIER1_PIN, BARRIER1_CLOSED, BARRIER1_OPEN, 15);
+      currentBarrier1State = "OPEN";
+      setLED('G');
+      Serial.println("✅ Barrier1 OPENED");
+    }
+  } 
+  else if (action == "CLOSE_BARRIER1") {
+    Serial.println("🔒 Barrier1 CLOSE command received");
+    if (currentBarrier1State != "CLOSED") {
+      moveServo(barrier1Servo, SERVO_BARRIER1_PIN, BARRIER1_OPEN, BARRIER1_CLOSED, 15);
+      currentBarrier1State = "CLOSED";
+      setLED('R');
+      Serial.println("✅ Barrier1 CLOSED");
+    }
+  }
+  else if (action == "OPEN_BARRIER2") {
+    if (currentBarrier2State != "OPEN") {
+      moveServo(barrier2Servo, SERVO_BARRIER2_PIN, BARRIER_CLOSED, BARRIER_OPEN, 15);
+      currentBarrier2State = "OPEN";
+    }
+  } 
+  else if (action == "CLOSE_BARRIER2") {
+    if (currentBarrier2State != "CLOSED") {
+      moveServo(barrier2Servo, SERVO_BARRIER2_PIN, BARRIER_OPEN, BARRIER_CLOSED, 15);
+      currentBarrier2State = "CLOSED";
+    }
+  }
+  else if (action == "OPEN_EXIT") {
+    if (currentExitState != "OPEN") {
+      moveServo(exitServo, SERVO_EXIT_PIN, BARRIER_CLOSED, BARRIER_OPEN, 15);
+      currentExitState = "OPEN";
+    }
+  } 
+  else if (action == "CLOSE_EXIT") {
+    if (currentExitState != "CLOSED") {
+      moveServo(exitServo, SERVO_EXIT_PIN, BARRIER_OPEN, BARRIER_CLOSED, 15);
+      currentExitState = "CLOSED";
     }
   }
 }
 
-void streamTimeoutCallback(bool timeout) {
-  if (timeout) {
-    Serial.println("⚠️ Stream timeout!");
+// ===== COMPOSITE COMMANDS =====
+
+void executeEntrySequence() {
+  Serial.println("🎬 Starting ENTRY_SEQUENCE...");
+  
+  // Step 1: Open Barrier 1
+  reportStatus("barrier1_opening", "Opening entry barrier");
+  if (currentBarrier1State != "OPEN") {
+    moveServo(barrier1Servo, SERVO_BARRIER1_PIN, BARRIER1_CLOSED, BARRIER1_OPEN, 15);
+    currentBarrier1State = "OPEN";
+    setLED('G');
   }
-  if (!streamData.httpConnected()) {
-    Serial.println("⚠️ Stream disconnected - reconnecting...");
-    Firebase.beginStream(streamData, PATH_SERVO_COMMANDS);
+  reportStatus("barrier1_opened", "Barrier 1 open - waiting for car");
+  
+  // Step 2: Wait 5 seconds for car to pass (non-blocking)
+  unsigned long waitStart = millis();
+  while (millis() - waitStart < 5000) {
+    app.loop();  // Keep Firebase alive during wait
+    delay(100);
   }
+  
+  // Step 3: Close Barrier 1
+  reportStatus("barrier1_closing", "Closing entry barrier");
+  if (currentBarrier1State != "CLOSED") {
+    moveServo(barrier1Servo, SERVO_BARRIER1_PIN, BARRIER1_OPEN, BARRIER1_CLOSED, 15);
+    currentBarrier1State = "CLOSED";
+    setLED('R');
+  }
+  reportStatus("barrier1_closed", "Entry sequence complete");
+  
+  Serial.println("✅ ENTRY_SEQUENCE complete");
 }
 
-// ===== Send Ultrasonic Trigger to RTDB =====
+void executeRotateBack() {
+  Serial.println("🔄 Rotating camera to BACK...");
+  reportStatus("rotating_back", "Rotating camera");
+  
+  if (currentAxisState != "BACK") {
+    moveServo(axisServo, SERVO_AXIS_PIN, AXIS_FRONT, AXIS_BACK, 10);
+    currentAxisState = "BACK";
+  }
+  
+  reportStatus("rotated_back", "Camera at back position");
+  Serial.println("✅ Rotation to BACK complete");
+}
+
+void executeRotateFront() {
+  Serial.println("🔄 Rotating camera to FRONT...");
+  reportStatus("rotating_front", "Rotating camera");
+  
+  if (currentAxisState != "FRONT") {
+    moveServo(axisServo, SERVO_AXIS_PIN, AXIS_BACK, AXIS_FRONT, 10);
+    currentAxisState = "FRONT";
+  }
+  
+  reportStatus("rotated_front", "Camera at front position");
+  Serial.println("✅ Rotation to FRONT complete");
+}
+
+// ===== Firebase Operations =====
+
 void sendTrigger(int distance) {
-  FirebaseJson json;
-  json.set("detected", true);
-  json.set("distance_cm", distance);
-  json.set("timestamp", (unsigned long)(millis()));
-  
-  if (Firebase.setJSON(firebaseData, PATH_ENTRY_TRIGGER, json)) {
-    Serial.println("✅ Trigger sent to RTDB");
-  } else {
-    Serial.println("❌ Trigger send failed: " + firebaseData.errorReason());
+  if (!app.ready()) {
+    Serial.println("❌ Firebase not ready, cannot send trigger");
+    return;
   }
+  
+  // Create JSON object with proper JsonWriter usage
+  // Each create() makes a separate object, join() combines them
+  JsonWriter writer;
+  
+  object_t obj1, obj2, obj3, ts, json;
+  
+  // Create individual field objects
+  writer.create(obj1, "detected", true);
+  writer.create(obj2, "distance_cm", distance);
+  
+  // Create server timestamp: {".sv": "timestamp"}
+  writer.create(ts, ".sv", "timestamp");
+  writer.create(obj3, "timestamp", ts);
+  
+  // Join all fields into one JSON object
+  writer.join(json, 3, obj1, obj2, obj3);
+  
+  Serial.println("📤 Sending trigger to Python...");
+  Database.set<object_t>(aClient, PATH_ENTRY_TRIGGER, json, processResult, "sendTrigger");
 }
 
-// ===== Move Single Servo Smoothly =====
-void moveServo(Servo& servo, int& currentPos, int targetPos, int stepDelay) {
-  if (targetPos == currentPos) return;
+void resetGateCommand() {
+  if (!app.ready()) {
+    Serial.println("⚠️ Firebase not ready for reset");
+    return;
+  }
   
-  Serial.println("Moving servo: " + String(currentPos) + " -> " + String(targetPos));
+  Serial.println("🔄 Resetting gate command to IDLE...");
   
-  int step = (targetPos > currentPos) ? 1 : -1;
-  for (int pos = currentPos; pos != targetPos; pos += step) {
+  object_t json;
+  JsonWriter writer;
+  writer.create(json, "action", "IDLE");
+  
+  Database.set<object_t>(aClient, PATH_GATE_COMMAND, json, processResult, "resetGateCommand");
+  Serial.println("✅ Gate command reset to IDLE");
+}
+
+void reportStatus(String state, String message) {
+  if (!app.ready()) return;
+  
+  // Use join() pattern to include both fields
+  JsonWriter writer;
+  object_t obj1, obj2, json;
+  
+  writer.create(obj1, "state", state);
+  writer.create(obj2, "message", message);
+  writer.join(json, 2, obj1, obj2);
+  
+  Database.set<object_t>(aClient, PATH_ENTRY_STATUS, json, processResult, "reportStatus");
+}
+
+// ===== Move Servo with async task processing =====
+void moveServo(Servo& servo, int pin, int from, int to, int delayMs) {
+  servo.attach(pin);
+  
+  int step = (to > from) ? 1 : -1;
+  for (int pos = from; pos != to; pos += step) {
     servo.write(pos);
-    delay(stepDelay);
+    
+    // Process Firebase async tasks during servo movement
+    // This keeps SSL connections alive and processes stream events
+    app.loop();
+    
+    delay(delayMs);
   }
-  servo.write(targetPos);
-  currentPos = targetPos;
+  servo.write(to);
+  
+  delay(150);  
+  servo.detach();
 }
 
-// ===== LED Control =====
-void setStatusLED(char status) {
-  digitalWrite(RED_LED, status == 'R' ? HIGH : LOW);
-  digitalWrite(YELLOW_LED, status == 'Y' ? HIGH : LOW);
-  digitalWrite(GREEN_LED, status == 'G' ? HIGH : LOW);
+void setLED(char c) {
+  digitalWrite(RED_LED, c == 'R' ? HIGH : LOW);
+  digitalWrite(YELLOW_LED, c == 'Y' ? HIGH : LOW);
+  digitalWrite(GREEN_LED, c == 'G' ? HIGH : LOW);
 }
 
-// ===== Distance Measurement =====
 int getDistance() {
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
-
   digitalWrite(TRIG_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
-
-  long duration = pulseIn(ECHO_PIN, HIGH, 30000);  // 30ms timeout
-  if (duration == 0) return -1;  // Timeout
-  
-  int dist = duration * 0.034 / 2;
-  return dist;
+  long d = pulseIn(ECHO_PIN, HIGH, 30000);
+  return d == 0 ? -1 : d * 0.034 / 2;
 }

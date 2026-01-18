@@ -1,0 +1,141 @@
+// LinkNPark Database Schema
+// Generated: 2026-01-10 04:34:59
+// Smart Parking Management System
+
+Table parking_lots {
+  _id varchar [pk]
+  address varchar
+  available_spots int
+  created_at timestamp
+  currency varchar
+  hourly_rate decimal
+  location varchar
+  name varchar
+  occupied_spots int
+  operating_hours json
+  status varchar
+  total_spots int
+  updated_at timestamp
+}
+
+Table parking_sessions {
+  _id varchar [pk]
+  amount_paid decimal
+  car_label varchar
+  confidence decimal
+  confirmedBy varchar
+  created_at timestamp
+  deviceId varchar
+  durationMinutes decimal
+  duration_minutes decimal
+  enteredAt timestamp
+  entered_at timestamp
+  entryMethod varchar
+  entry_method varchar
+  exitTime timestamp
+  exit_method varchar
+  exitedAt varchar
+  exited_at varchar
+  hourlyRate decimal
+  hourly_rate decimal
+  imageUrl varchar
+  licensePlate varchar
+  license_plate varchar
+  lotId varchar
+  lot_id varchar
+  paidAt timestamp
+  paid_at timestamp
+  parkedAt timestamp
+  parked_at timestamp
+  paymentMethod varchar
+  paymentStatus varchar
+  payment_id varchar
+  payment_status varchar
+  session_id varchar
+  spotCode varchar
+  spotId varchar
+  spot_code varchar
+  spot_id varchar
+  spot_number int
+  status varchar
+  totalAmount decimal
+  total_amount decimal
+  user_id varchar
+  vehicle_type varchar
+}
+
+Table parking_spots {
+  _id varchar [pk]
+  column int
+  created_at timestamp
+  currentCarLabel varchar
+  currentSessionId varchar
+  current_car_label varchar
+  is_available boolean
+  is_occupied boolean
+  is_reserved boolean
+  lot_id varchar
+  occupied_by_session_id varchar
+  reserved_by_user_id varchar
+  row varchar
+  spot_code varchar
+  spot_number int
+  status varchar
+  updatedAt timestamp
+  updated_at timestamp
+  vehicle_type varchar
+}
+
+Table reservations {
+  _id varchar [pk]
+  created_at timestamp
+  duration_hours int
+  license_plate varchar
+  lot_id varchar
+  payment_id varchar
+  payment_status varchar
+  reservation_id varchar [pk]
+  reserve_end timestamp
+  reserve_start timestamp
+  reserved_at timestamp
+  session_id varchar
+  spot_code varchar
+  spot_number int
+  status varchar
+  total_amount decimal
+  user_id varchar
+}
+
+Table users {
+  _id varchar [pk]
+  email varchar
+  name varchar
+  password varchar
+  role varchar
+}
+
+Table vehicles {
+  _id varchar [pk]
+  color varchar
+  is_primary boolean
+  is_verified boolean
+  license_plate varchar
+  make varchar
+  model varchar
+  registered_at timestamp
+  updated_at timestamp
+  user_id varchar
+  vehicle_id varchar [pk]
+  vehicle_type varchar
+  year int
+}
+
+// Relationships
+Ref: parking_sessions.user_id > users._id
+Ref: reservations.user_id > users._id
+Ref: vehicles.user_id > users._id
+Ref: parking_spots.lot_id > parking_lots._id
+Ref: parking_sessions.lot_id > parking_lots._id
+Ref: reservations.lot_id > parking_lots._id
+Ref: parking_sessions.spot_id > parking_spots._id
+Ref: parking_sessions.session_id > reservations._id

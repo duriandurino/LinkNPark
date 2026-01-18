@@ -1,0 +1,447 @@
+// LinkNPark Enhanced Database Schema
+// Version: 2.0 - Diorama Demo Setup
+// Generated: 2026-01-11
+// Smart Parking Management System
+
+// ============================================================
+// USERS - Account management with wallet system
+// ============================================================
+Table users {
+  _id varchar [pk, note: 'Firebase Auth UID']
+  email varchar [not null, unique]
+  password varchar [note: 'Plain text - exhibit only']
+  name varchar [not null]
+  role varchar [not null, note: 'DRIVER | STAFF']
+  
+  // Wallet simulation (NEW)
+  wallet_balance decimal [not null, default: 0, note: 'Balance in PHP']
+  wallet_currency varchar [default: 'PHP']
+  
+  // PWD support (NEW)
+  is_pwd boolean [default: false, note: 'Person with Disability status']
+  pwd_id_number varchar [null, note: 'PWD ID number']
+  
+  // Contact
+  phone_number varchar [null]
+  
+  // Timestamps
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  last_login_at timestamp [null]
+  
+  Note: 'User accounts: drivers and staff. Includes wallet for payment simulation.'
+}
+
+// ============================================================
+// PARKING FACILITIES - Parking lot information
+// ============================================================
+Table parking_facilities {
+  _id varchar [pk, note: 'Facility ID']
+  name varchar [not null]
+  code varchar [not null, unique, note: 'Short code e.g. DEMO']
+  address varchar [not null]
+  
+  // Location
+  location_latitude decimal [not null]
+  location_longitude decimal [not null]
+  
+  // Capacity (calculated from parking_spaces)
+  total_spaces int [not null, default: 0]
+  available_spaces int [not null, default: 0]
+  occupied_spaces int [not null, default: 0]
+  reserved_spaces int [not null, default: 0]
+  pwd_spaces int [not null, default: 0, note: 'Total PWD spaces']
+  
+  // Pricing
+  base_hourly_rate decimal [not null, note: 'Base rate in PHP']
+  pwd_hourly_rate decimal [not null, note: 'Discounted PWD rate']
+  currency varchar [default: 'PHP']
+  
+  // Status
+  status varchar [not null, default: 'ACTIVE', note: 'ACTIVE | INACTIVE | MAINTENANCE']
+  
+  // Timestamps
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  
+  Note: 'Parking facilities/lots. Diorama has 1 facility with 4 spots.'
+}
+
+// ============================================================
+// PARKING SPACES - Individual parking spots with PWD support
+// ============================================================
+Table parking_spaces {
+  _id varchar [pk, note: 'Space ID']
+  facility_id varchar [not null, ref: > parking_facilities._id]
+  
+  // Identification
+  space_code varchar [not null, note: 'e.g. A1, PWD-1']
+  space_number int [not null]
+  
+  // Layout
+  row varchar [not null, note: 'Row identifier']
+  column int [not null]
+  floor varchar [null, note: 'Floor level if multi-story']
+  
+  // Space type (IMPORTANT for PWD enforcement)
+  space_type varchar [not null, note: 'STANDARD | PWD']
+  vehicle_type varchar [not null, default: 'STANDARD', note: 'STANDARD only - no motorcycles']
+  
+  // Current status
+  status varchar [not null, default: 'AVAILABLE', note: 'AVAILABLE | OCCUPIED | RESERVED | OUT_OF_SERVICE']
+  is_available boolean [not null, default: true]
+  is_occupied boolean [not null, default: false]
+  is_reserved boolean [not null, default: false]
+  
+  // Current occupancy
+  current_session_id varchar [null, ref: > parking_sessions._id]
+  current_license_plate varchar [null]
+  occupied_since timestamp [null]
+  
+  // Reservation info
+  reserved_by_user_id varchar [null, ref: > users._id]
+  reserved_by_license_plate varchar [null]
+  reserved_until timestamp [null]
+  reservation_id varchar [null, ref: > reservations._id]
+  
+  // Timestamps
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  
+  Note: 'Individual parking spaces. Includes PWD-only spots with enforcement.'
+}
+
+// ============================================================
+// PARKING SESSIONS - Active and historical parking sessions
+// ============================================================
+Table parking_sessions {
+  _id varchar [pk, note: 'Session ID (document ID)']
+  
+  // User & Vehicle
+  user_id varchar [null, ref: > users._id, note: 'Null for camera-detected unregistered cars']
+  license_plate varchar [not null]
+  vehicle_id varchar [null, ref: > vehicles._id]
+  vehicle_is_pwd boolean [not null, default: false, note: 'PWD status at entry time']
+  
+  // Location
+  facility_id varchar [not null, ref: > parking_facilities._id]
+  space_id varchar [not null, ref: > parking_spaces._id]
+  space_code varchar [not null, note: 'Snapshot of space code']
+  space_type varchar [not null, note: 'Snapshot of space type at entry']
+  
+  // Entry/Exit timing
+  entered_at timestamp [not null]
+  parked_at timestamp [null]
+  exited_at timestamp [null]
+  duration_minutes int [default: 0]
+  
+  // Exit method (NEW - replaces entry_method)
+  exit_method varchar [null, note: 'CASH_TO_STAFF | WALLET_TO_STAFF | AUTO_PAYMENT']
+  
+  // Pricing
+  hourly_rate decimal [not null]
+  base_amount decimal [not null, note: 'Parking fee only']
+  penalty_amount decimal [default: 0, note: 'Total penalties']
+  total_amount decimal [not null, note: 'base + penalty']
+  currency varchar [default: 'PHP']
+  
+  // Payment (simplified for demo)
+  payment_status varchar [not null, default: 'UNPAID', note: 'UNPAID | PAID']
+  payment_method varchar [null, note: 'WALLET | CASH | AUTO_PAY']
+  payment_id varchar [null, ref: > payments._id]
+  paid_at timestamp [null]
+  
+  // Session status
+  status varchar [not null, default: 'ACTIVE', note: 'ACTIVE | COMPLETED | CANCELLED']
+  
+  // Violation tracking (NEW)
+  has_violation boolean [default: false]
+  violation_type varchar [null, note: 'PWD_MISMATCH | RESERVED_MISMATCH']
+  violation_details varchar [null]
+  
+  // Links
+  reservation_id varchar [null, ref: > reservations._id]
+  confirmed_by_staff_id varchar [null, ref: > users._id]
+  confirmed_at timestamp [null]
+  
+  // Timestamps
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  
+  Note: 'Parking sessions from entry to exit. Includes violation detection.'
+}
+
+// ============================================================
+// RESERVATIONS - Parking space reservations
+// ============================================================
+Table reservations {
+  _id varchar [pk, note: 'Reservation ID']
+  
+  // User info
+  user_id varchar [not null, ref: > users._id]
+  license_plate varchar [not null]
+  vehicle_id varchar [null, ref: > vehicles._id]
+  
+  // Location
+  facility_id varchar [not null, ref: > parking_facilities._id]
+  space_id varchar [null, ref: > parking_spaces._id, note: 'Can be null for any available']
+  space_code varchar [null]
+  
+  // Reservation time
+  start_time timestamp [not null]
+  end_time timestamp [not null]
+  duration_hours int [not null]
+  
+  // Pricing
+  hourly_rate decimal [not null]
+  total_amount decimal [not null]
+  currency varchar [default: 'PHP']
+  
+  // Payment
+  payment_status varchar [not null, default: 'UNPAID', note: 'UNPAID | PAID']
+  payment_id varchar [null, ref: > payments._id]
+  paid_at timestamp [null]
+  
+  // Status
+  status varchar [not null, default: 'ACTIVE', note: 'ACTIVE | COMPLETED | CANCELLED | EXPIRED | NO_SHOW']
+  cancelled_at timestamp [null]
+  cancellation_reason varchar [null]
+  
+  // Session link (when user arrives)
+  session_id varchar [null, ref: > parking_sessions._id]
+  checked_in_at timestamp [null]
+  
+  // Auto-expiry
+  expires_at timestamp [not null]
+  grace_period_minutes int [default: 15]
+  
+  // Timestamps
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  
+  Note: 'Parking reservations with auto-expiry for no-shows.'
+}
+
+// ============================================================
+// VEHICLES - User vehicle registry with PWD status
+// ============================================================
+Table vehicles {
+  _id varchar [pk, note: 'Vehicle ID']
+  user_id varchar [not null, ref: > users._id]
+  
+  // Vehicle info
+  license_plate varchar [not null, unique]
+  make varchar [not null]
+  model varchar [not null]
+  color varchar [not null]
+  year int [not null]
+  vehicle_type varchar [not null, note: 'SEDAN | SUV | VAN | TRUCK']
+  
+  // PWD status (NEW)
+  is_pwd_vehicle boolean [default: false, note: 'PWD sticker/registration']
+  pwd_sticker_number varchar [null]
+  pwd_verified boolean [default: false]
+  
+  // Preferences
+  is_primary boolean [default: false]
+  
+  // Timestamps
+  registered_at timestamp [not null]
+  updated_at timestamp [not null]
+  
+  Note: 'User vehicles with PWD status for enforcement.'
+}
+
+// ============================================================
+// PAYMENTS - Payment transaction records
+// ============================================================
+Table payments {
+  _id varchar [pk, note: 'Payment transaction ID']
+  transaction_id varchar [not null, unique]
+  
+  // Amount
+  amount decimal [not null]
+  currency varchar [default: 'PHP']
+  
+  // Parties
+  payer_user_id varchar [not null, ref: > users._id]
+  payer_name varchar [not null]
+  recipient_user_id varchar [null, ref: > users._id, note: 'Staff who received if cash']
+  
+  // Payment method (simplified for demo)
+  payment_method varchar [not null, note: 'WALLET | CASH | AUTO_PAY']
+  payment_source varchar [not null, note: 'PARKING_SESSION | RESERVATION | PENALTY']
+  
+  // Related records
+  session_id varchar [null, ref: > parking_sessions._id]
+  reservation_id varchar [null, ref: > reservations._id]
+  penalty_id varchar [null, ref: > penalties._id]
+  
+  // Wallet tracking (for simulation)
+  from_wallet_before decimal [null]
+  from_wallet_after decimal [null]
+  to_wallet_before decimal [null]
+  to_wallet_after decimal [null]
+  
+  // Status
+  status varchar [not null, default: 'COMPLETED', note: 'PENDING | COMPLETED | FAILED | REFUNDED']
+  
+  // Timestamps
+  processed_at timestamp [not null]
+  created_at timestamp [not null]
+  
+  Note: 'Payment transactions with wallet balance tracking.'
+}
+
+// ============================================================
+// PENALTIES - Parking violations and penalty fees
+// ============================================================
+Table penalties {
+  _id varchar [pk, note: 'Penalty ID']
+  
+  // Violation info
+  violation_type varchar [not null, note: 'PWD_MISMATCH | RESERVED_MISMATCH | OVERSTAY | OTHER']
+  violation_title varchar [not null]
+  violation_description varchar [not null]
+  
+  // User
+  user_id varchar [null, ref: > users._id]
+  license_plate varchar [not null]
+  
+  // Related records
+  session_id varchar [null, ref: > parking_sessions._id]
+  reservation_id varchar [null, ref: > reservations._id]
+  
+  // Location
+  facility_id varchar [not null, ref: > parking_facilities._id]
+  space_id varchar [not null, ref: > parking_spaces._id]
+  space_code varchar [not null]
+  
+  // Penalty amount
+  penalty_amount decimal [not null]
+  currency varchar [default: 'PHP']
+  detected_by varchar [not null, note: 'SYSTEM | STAFF | CAMERA']
+  detected_by_user_id varchar [null, ref: > users._id]
+  
+  // Status
+  status varchar [not null, default: 'PENDING', note: 'PENDING | PAID | WAIVED | DISPUTED']
+  payment_id varchar [null, ref: > payments._id]
+  paid_at timestamp [null]
+  waived_by_staff_id varchar [null, ref: > users._id]
+  waived_reason varchar [null]
+  
+  // Timestamps
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  
+  Note: 'Parking violations and penalties. PWD/Reserved enforcement.'
+}
+
+// ============================================================
+// NOTIFICATIONS - User notifications
+// ============================================================
+Table notifications {
+  _id varchar [pk, note: 'Notification ID']
+  
+  // Content
+  type varchar [not null, note: 'PENALTY | RESERVATION_EXPIRING | PAYMENT_SUCCESS | etc']
+  title varchar [not null]
+  message varchar [not null]
+  data json [note: 'Additional context data']
+  
+  // Recipient
+  recipient_type varchar [not null, note: 'DRIVER | STAFF']
+  recipient_id varchar [not null, note: 'User ID or ALL']
+  
+  // Status
+  read boolean [default: false]
+  read_at timestamp [null]
+  
+  // Timestamp
+  created_at timestamp [not null]
+  
+  Note: 'User notifications for events and alerts.'
+}
+
+// ============================================================
+// SESSION LOGS - Complete audit trail for history screen
+// ============================================================
+Table session_logs {
+  _id varchar [pk, note: 'Log entry ID']
+  
+  // Log type
+  log_type varchar [not null, note: 'SESSION_START | SESSION_END | PAYMENT | PENALTY | RESERVATION']
+  action varchar [not null, note: 'VEHICLE_ENTERED | VEHICLE_EXITED | PAYMENT_RECEIVED | etc']
+  
+  // User
+  user_id varchar [null, ref: > users._id]
+  user_name varchar [null]
+  
+  // Related entities
+  session_id varchar [null, ref: > parking_sessions._id]
+  reservation_id varchar [null, ref: > reservations._id]
+  payment_id varchar [null, ref: > payments._id]
+  penalty_id varchar [null, ref: > penalties._id]
+  
+  // Details
+  facility_id varchar [not null, ref: > parking_facilities._id]
+  space_code varchar [null]
+  license_plate varchar [null]
+  amount decimal [null]
+  
+  // Description
+  description varchar [not null]
+  
+  // Timestamp
+  timestamp timestamp [not null]
+  
+  Note: 'Complete audit trail. Powers the History/Logs screen in app.'
+}
+
+// ============================================================
+// INDEXES (for performance)
+// ============================================================
+// Note: Define indexes in Firestore Console or via script
+// - users: email (unique)
+// - parking_spaces: facility_id, status
+// - parking_sessions: user_id, status, facility_id
+// - reservations: user_id, status, start_time
+// - vehicles: user_id, license_plate
+// - payments: payer_user_id, session_id
+// - penalties: session_id, status
+// - session_logs: timestamp (desc), user_id
+
+// ============================================================
+// RELATIONSHIPS SUMMARY
+// ============================================================
+// users (1) ---- (M) parking_sessions
+// users (1) ---- (M) reservations
+// users (1) ---- (M) vehicles
+// users (1) ---- (M) payments (as payer)
+// users (1) ---- (M) penalties (as violator)
+// users (1) ---- (M) session_logs
+
+// parking_facilities (1) ---- (M) parking_spaces
+// parking_facilities (1) ---- (M) parking_sessions
+// parking_facilities (1) ---- (M) reservations
+// parking_facilities (1) ---- (M) penalties
+
+// parking_spaces (1) ---- (M) parking_sessions
+// parking_spaces (1) ---- (1) reservations (current)
+
+// parking_sessions (1) ---- (1) payments
+// parking_sessions (1) ---- (M) penalties
+
+// reservations (1) ---- (1) parking_sessions (when checked in)
+// reservations (1) ---- (1) payments
+
+// penalties (1) ---- (1) payments
+
+// ============================================================
+// DIORAMA DEMO SETUP
+// ============================================================
+// - 4 parking spaces: [A1] [A2] [A3] [PWD-1] in one row
+// - 3 toy cars: 2 unregistered (XYZ-9999, ABC-8888), 1 PWD (DEMO-PWD1)
+// - 2 users: 1 driver (PWD, ₱500 wallet), 1 staff (₱0 wallet)
+// - Minimal history: 2-3 completed sessions with 1 violation
+// - ~35 total documents across all collections
